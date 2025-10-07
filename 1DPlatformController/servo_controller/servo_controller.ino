@@ -49,7 +49,7 @@ void
 setup() 
 {
   // Initialize serial communication
-  Serial.begin(9600);
+  Serial.begin(115200);
   
   // Attach servo
   beamServo.attach(servoPin);
@@ -68,8 +68,23 @@ setup()
 void 
 loop()
 {
-  
+  /*
+  for (int i=70; i<145; i+=5)
+  {
+    beamServo.write(i);
+    delay(50);
+  }
+
+  for (int i=145; i>70; i-=5)
+  {
+    beamServo.write(i);
+    delay(50);
+  }
+
+  */
   //beamServo.write(55);
+
+  
   
 
   // Check for incoming serial data
@@ -77,7 +92,7 @@ loop()
     // Read the incoming byte
     int receivedAngle = Serial.read();
 
-    Serial.println("Loop running...");
+   // Serial.println("Loop running...");
     
     // Validate angle range
     if (receivedAngle >= MIN_ANGLE && receivedAngle <= MAX_ANGLE) {
