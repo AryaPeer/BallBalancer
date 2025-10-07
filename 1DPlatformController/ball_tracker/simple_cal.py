@@ -24,7 +24,7 @@ class SimpleAutoCalibrator:
         
         # Camera configuration
         self.CAM_INDEX = 1  # Default camera index (1 for external USB camera)
-        self.FRAME_W, self.FRAME_H = 640, 480  # Frame dimensions
+        self.FRAME_W, self.FRAME_H = 700, 480  # Frame dimensions
         
         # Calibration state tracking
         self.current_frame = None  # Current video frame
@@ -41,7 +41,7 @@ class SimpleAutoCalibrator:
         
         # Servo hardware configuration
         self.servo = None  # Serial connection to servo
-        self.servo_port = "COM4"  # Servo communication port
+        self.servo_port = "COM3"  # Servo communication port
         self.neutral_angle = 105  # Servo neutral position angle
         
         # Position limit results
@@ -56,7 +56,7 @@ class SimpleAutoCalibrator:
             bool: True if connection successful, False otherwise
         """
         try:
-            self.servo = serial.Serial(self.servo_port, 9600)
+            self.servo = serial.Serial(self.servo_port, 115200)
             time.sleep(2)  # Allow time for connection to stabilize
             print("[SERVO] Connected")
             return True
