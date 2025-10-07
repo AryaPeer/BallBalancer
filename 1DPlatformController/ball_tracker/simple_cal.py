@@ -10,8 +10,8 @@ import serial
 import time
 from datetime import datetime
 
-MIN_SERVO_ANGLE = 85   # Min allowable sent servo angle
-MAX_SERVO_ANGLE = 125  # Min allowable sent servo angle
+MIN_SERVO_ANGLE = 80   # Min allowable sent servo angle
+MAX_SERVO_ANGLE = 130  # Min allowable sent servo angle
 
 class SimpleAutoCalibrator:
     """Interactive calibration system for ball and beam control setup."""
@@ -23,7 +23,7 @@ class SimpleAutoCalibrator:
         self.BEAM_LENGTH_M = 0.195  # Known beam length in meters
         
         # Camera configuration
-        self.CAM_INDEX = 1  # Default camera index
+        self.CAM_INDEX = 1  # Default camera index (1 for external USB camera)
         self.FRAME_W, self.FRAME_H = 640, 480  # Frame dimensions
         
         # Calibration state tracking

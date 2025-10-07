@@ -10,8 +10,8 @@ from threading import Thread
 import queue
 from ball_detection import detect_ball_x
 
-MIN_SERVO_ANGLE = 85   # Min allowable sent servo angle
-MAX_SERVO_ANGLE = 125  # Min allowable sent servo angle
+MIN_SERVO_ANGLE = 80   # Min allowable sent servo angle
+MAX_SERVO_ANGLE = 130  # Min allowable sent servo angle
 
 DISPLAY_SIZE = (320, 240)  # Size for display window
 
@@ -61,7 +61,7 @@ class BasicPIDController:
     def send_servo_angle(self, angle):
         """Send angle command to servo motor (clipped for safety)."""
         if self.servo:
-            servo_angle = self.neutral_angle - angle
+            servo_angle = self.neutral_angle + angle
             servo_angle = int(np.clip(servo_angle, MIN_SERVO_ANGLE, MAX_SERVO_ANGLE))
             try:
                 self.servo.write(bytes([servo_angle]))
@@ -88,7 +88,7 @@ class BasicPIDController:
 
         # PID output (limit to safe beam range)
         output = P + I + D
-        output = np.clip(output, MIN_SERVO_ANGLE, MAX_SERVO_ANGLE)
+        output = np.clip(output, -15, 15)
 
         print(error)
         return output
