@@ -143,6 +143,11 @@ class BasicPIDController:
                 # Wait for latest ball position from camera
                 position = self.position_queue.get(timeout=0.1)
                 # Compute control output using PID
+
+                # from ball position/error, find desired roll and pitch
+                # create rotational matrix for converting desired roll/pitch into 
+                # create matrix constants
+
                 control_output = self.update_pid(position)
                 # Send control command to servo (real or simulated)
                 self.send_servo_angle(control_output)
