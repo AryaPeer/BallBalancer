@@ -27,12 +27,7 @@
   "servo": {
     "port": "COM3",
     "num_servos": 3,
-    "neutral_angles": [105, 105, 105],
-    "servo_positions_deg": [0, 120, 240],
-    "min_angle": 80,
-    "max_angle": 130,
-    "use_pwm_driver": false,
-    "pwm_frequency": 50
+    "use_pwm_driver": true
   },
   "kinematics": {
     "l": 10.0,
