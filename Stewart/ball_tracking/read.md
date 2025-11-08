@@ -1,4 +1,0 @@
-controller
-gui
-vision
-main

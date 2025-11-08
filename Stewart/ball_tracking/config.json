@@ -1,6 +1,7 @@
 {
   "timestamp": "2025-10-07T18:22:25.853302",
-  "beam_length_m": 0.195,
+  "platform_type": "stewart",
+  "platform_radius_m": 0.10,
   "camera": {
     "index": 1,
     "frame_width": 700,
@@ -25,6 +26,16 @@
   },
   "servo": {
     "port": "COM3",
-    "neutral_angle": 105
+    "num_servos": 3,
+    "use_pwm_driver": true
+  },
+  "kinematics": {
+    "l": 10.0,
+    "l_11": 8.0,
+    "l_12": 8.0,
+    "l_21": 8.0,
+    "l_22": 8.0,
+    "l_31": 8.0,
+    "l_32": 8.0
   }
 }

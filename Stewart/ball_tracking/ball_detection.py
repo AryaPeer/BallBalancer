@@ -1,7 +1,3 @@
-# Ball Detection Module for Computer Vision Ball Tracking System
-# Detects colored balls in video frames using HSV color space filtering
-# Provides both class-based and legacy function interfaces
-
 import cv2
 import numpy as np
 import json
@@ -74,7 +70,7 @@ class BallDetector:
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         if not contours:
-            return False, None, None, 0.0
+            return False, None, None, (0.0, 0.0)
         
         # Select the largest contour (assumed to be the ball)
         largest_contour = max(contours, key=cv2.contourArea)
@@ -88,10 +84,14 @@ class BallDetector:
         
         # Convert pixel position to meters from center
         center_x = frame.shape[1] // 2  # Frame center x-coordinate
+        center_y = frame.shape[0] // 2  # Frame center y-coordinate
         normalized_x = (x - center_x) / center_x  # Normalize to -1 to +1 range
-        position_m = normalized_x * self.scale_factor  # Convert to meters
+        normalized_y = (y - center_y) / center_y  # Normalize to -1 to +1 range
         
-        return True, (int(x), int(y)), radius, position_m
+        position_x_m = normalized_x * self.scale_factor
+        position_y_m = -normalized_y * self.scale_factor
+
+        return True, (int(x), int(y)), radius, (position_x_m, position_y_m)
 
     def draw_detection(self, frame, show_info=True):
         """Detect ball and draw detection overlay on frame.
@@ -114,7 +114,11 @@ class BallDetector:
         # Draw vertical center reference line
         height, width = frame.shape[:2]
         center_x = width // 2
+        center_y = height // 2
+
         cv2.line(overlay, (center_x, 0), (center_x, height), (255, 255, 255), 1)
+        cv2.line(overlay, (0, center_y), (width, center_y), (255, 255, 255), 1)
+
         cv2.putText(overlay, "Center", (center_x + 5, 20),
                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
         
@@ -122,18 +126,27 @@ class BallDetector:
             # Draw circle around detected ball
             cv2.circle(overlay, center, int(radius), (0, 255, 0), 2)  # Green circle
             cv2.circle(overlay, center, 3, (0, 255, 0), -1)  # Green center dot
+
+            cv2.line(overlay, (center_x, center_y), center, (0, 255, 255), 1)
             
             if show_info:
-                # Display ball position information
-                cv2.putText(overlay, f"x: {center[0]}", (center[0] - 30, center[1] - 40),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
-                cv2.putText(overlay, f"pos: {position_m:.4f}m", (center[0] - 40, center[1] - 20),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+                x_m, y_m = position_m
+                
+                cv2.putText(overlay, f"px: ({center[0]}, {center[1]})", (center[0] - 50, center[1] - 50),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
+                cv2.putText(overlay, f"x: {x_m:.4f}m", (center[0] - 40, center[1] - 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+                cv2.putText(overlay, f"y: {y_m:.4f}m", (center[0] - 40, center[1] - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+                
+                distance = np.sqrt(x_m**2 + y_m**2)
+                cv2.putText(overlay, f"dist: {distance:.4f}m", (center[0] - 45, center[1] + 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
         
         return overlay, found, position_m
 
 # Legacy function for backward compatibility with existing code
-def detect_ball_x(frame):
+def detect_ball_xy(frame):
     """Legacy function that matches the old ball_detection.py interface.
     
     This function maintains compatibility with existing code that expects
@@ -154,47 +167,45 @@ def detect_ball_x(frame):
     vis_frame, found, position_m = detector.draw_detection(frame)
     
     if found:
-        # Convert back to normalized coordinates for legacy compatibility
-        x_normalized = position_m / detector.scale_factor if detector.scale_factor != 0 else 0.0
+        x_m, y_m = position_m
+        x_normalized = x_m / detector.scale_factor if detector.scale_factor != 0 else 0.0
+        y_normalized = y_m / detector.scale_factor if detector.scale_factor != 0 else 0.0
+
         x_normalized = np.clip(x_normalized, -1.0, 1.0)  # Ensure within bounds
+        y_normalized = np.clip(y_normalized, -1.0, 1.0)  # Ensure within bounds
+
+        position_normalized = (x_normalized, y_normalized)
     else:
-        x_normalized = 0.0
+        position_normalized = (0.0, 0.0)
     
-    return found, x_normalized, vis_frame
+    return found, position_normalized, vis_frame
 
 # For testing/calibration when run directly
 def main():
     """Test ball detection with current config."""
     detector = BallDetector()
-    cap = cv2.VideoCapture(0)  # Use default camera
+    cap = cv2.VideoCapture(0)
     
-    print("Ball Detection Test")
+    print("2D Ball Detection Test")
     print("Press 'q' to quit")
     
     while True:
         ret, frame = cap.read()
         if not ret:
-            print("Failed to grab frame")
             break
         
-        # Resize frame for consistent processing
         frame = cv2.resize(frame, (640, 480))
-        
-        # Get detection results with overlay
         vis_frame, found, position_m = detector.draw_detection(frame)
         
-        # Show detection info in console
         if found:
-            print(f"Ball detected at {position_m:.4f}m from center")
+            x_m, y_m = position_m
+            print(f"Ball at ({x_m:.4f}m, {y_m:.4f}m)")
         
-        # Display frame with detection overlay
-        cv2.imshow("Ball Detection Test", vis_frame)
+        cv2.imshow("2D Ball Detection Test", vis_frame)
         
-        # Exit on 'q' key press
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
     
-    # Clean up resources
     cap.release()
     cv2.destroyAllWindows()
 
