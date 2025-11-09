@@ -426,6 +426,7 @@ class SimpleAutoCalibrator:
                 # Start automatic limit finding
                 #self.find_limits_automatically()
                 self.phase = "complete"
+                continue
             elif key == ord('s') and self.phase == "complete":
                 # Save configuration and exit
                 self.save_config()
