@@ -8,7 +8,7 @@ from tkinter import ttk
 import matplotlib.pyplot as plt
 from threading import Thread
 import queue
-from ball_detection import detect_ball_x
+from ball_detection import detect_ball_xy
 
 MIN_SERVO_ANGLE = 80   # Min allowable sent servo angle
 MAX_SERVO_ANGLE = 130  # Min allowable sent servo angle
@@ -32,9 +32,9 @@ class BasicPIDController:
         self.neutral_angle = self.config['servo']['neutral_angle']
         self.servo = None
         # Controller-internal state
-        self.setpoint = 0.0
-        self.integral = 0.0
-        self.prev_error = 0.0
+        self.setpoint = (0.0, 0.0)
+        self.integral = (0.0, 0.0)
+        self.prev_error = (0.0, 0.0)
         # Data logs for plotting results
         self.time_log = []
         self.position_log = []
@@ -71,20 +71,41 @@ class BasicPIDController:
     #----------------------------------------------------------------------------------
     def update_pid(self, position, dt=0.033):
         """Perform PID calculation and return control output."""
-        error = self.setpoint - position  # Compute error
-        error = error * 20  # Scale error for easier tuning (if needed)
+
+        ### from ball position/error, find desired roll and pitch
+        ### create rotational matrix for converting desired roll/pitch into motor angle
+        ### send each individual ange into PID control
+
+        # desired_roll =
+        # desired_pitch =
+
+        # rotational_roll_matrix = []
+        # rotational_pitch_matrix = []
+
+        scale = 20
+
+        error_x = (self.setpoint - position[0])*scale  # Compute x-error
+        error_y = (self.setpoint - position[1])*scale  # Compute y-error
 
         # Proportional term
-        P = self.Kp * error
+        Px = self.Kp * error_x
+        Py = self.Kp * error_y
 
         # Integral term accumulation
-        self.integral += error * dt
-        I = self.Ki * self.integral
+        self.integral[0] += error_x * dt
+        self.integral[1] += error_y * dt
+
+        Ix = self.Ki * self.integral[0]
+        Iy = self.Ki * self.integral[1]
 
         # Derivative term calculation
-        derivative = (error - self.prev_error) / dt
-        D = self.Kd * derivative
-        self.prev_error = error
+        derivative_x = (error_x - self.prev_error[0]) / dt
+        derivative_y = (error_y - self.prev_error[1]) / dt
+
+        Dx = self.Kd * derivative_x
+        Dy = self.Kd * derivative_y
+
+        self.prev_error = (error_x, error_y)
 
         # PID output (limit to safe beam range)
         output = P + I + D
@@ -108,16 +129,19 @@ class BasicPIDController:
             frame = cv2.resize(frame, DISPLAY_SIZE)
 
             # Detect ball position in frame
-            found, x_normalized, vis_frame = detect_ball_x(frame)
+            found, x_normalized, y_normalized, vis_frame = detect_ball_xy(frame)
 
             if found:
                 # Convert normalized to meters using scale
-                position_m = x_normalized * self.scale_factor
+                position_mx = x_normalized * self.scale_factor
+                position_my = y_normalized * self.scale_factor
+
+                position_norm = (position_mx, position_my)
                 # Always keep latest measurement only
                 try:
                     if self.position_queue.full():
                         self.position_queue.get_nowait()
-                    self.position_queue.put_nowait(position_m)
+                    self.position_queue.put_nowait(position_norm)
                 except Exception:
                     pass
 
@@ -141,23 +165,19 @@ class BasicPIDController:
         while self.running:
             try:
                 # Wait for latest ball position from camera
-                position = self.position_queue.get(timeout=0.1)
+                position_norm = self.position_queue.get(timeout=0.1)
                 # Compute control output using PID
 
-                # from ball position/error, find desired roll and pitch
-                # create rotational matrix for converting desired roll/pitch into 
-                # create matrix constants
-
-                control_output = self.update_pid(position)
+                control_output = self.update_pid(position_norm)
                 # Send control command to servo (real or simulated)
                 self.send_servo_angle(control_output)
                 # Log results for plotting
                 current_time = time.time() - self.start_time
                 self.time_log.append(current_time)
-                self.position_log.append(position)
+                self.position_log.append(position_norm)
                 self.setpoint_log.append(self.setpoint)
                 self.control_log.append(control_output)
-                print(f"Pos: {position:.3f}m, Output: {control_output:.1f}°")
+                print(f"Pos: {position_norm:.3f}m, Output: {control_output:.1f}°")
 
             except queue.Empty:
                 continue
