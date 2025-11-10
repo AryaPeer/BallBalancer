@@ -144,3 +144,36 @@ class BallDetector:
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
         
         return overlay, found, position_m
+
+def detect_ball_xy(frame):
+    """
+    Detects ball and returns normalized x and y positions
+    
+    Args:
+        frame: Input BGR image frame
+        
+    Returns:
+        found (bool): True if ball detected
+        x_normalized (float): Normalized x position (-1 to +1)
+        y_normalized (float): Normalized y position (-1 to +1)
+        vis_frame (array): Frame with detection overlay
+    """
+    # Create detector instance using default config
+    detector = BallDetector()
+    
+    # Get detection results with visual overlay
+    vis_frame, found, position_m = detector.draw_detection(frame)
+    
+    if found:
+        x_m, y_m = position_m
+        x_normalized = x_m / detector.scale_factor if detector.scale_factor != 0 else 0.0
+        y_normalized = y_m / detector.scale_factor if detector.scale_factor != 0 else 0.0
+
+        x_normalized = np.clip(x_normalized, -1.0, 1.0)  # Ensure within bounds
+        y_normalized = np.clip(y_normalized, -1.0, 1.0)  # Ensure within bounds
+
+    else:
+        x_normalized = 0.0
+        y_normalized = 0.0
+    
+    return found, x_normalized, y_normalized, vis_frame
