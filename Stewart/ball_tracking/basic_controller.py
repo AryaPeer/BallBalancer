@@ -10,9 +10,10 @@ from threading import Thread
 import queue
 from ball_detection import detect_ball_xy
 import math
+import struct
 
-MIN_SERVO_ANGLE = 80   # Min allowable sent servo angle
-MAX_SERVO_ANGLE = 130  # Min allowable sent servo angle
+MIN_SERVO_ANGLE = -30  # Min allowable sent servo angle
+MAX_SERVO_ANGLE = 30   # Max allowable sent servo angle
 
 DISPLAY_SIZE = (320, 240)  # Size for display window
 
@@ -71,9 +72,10 @@ class BasicPIDController:
                 angle2 = int(np.clip(angle2, MIN_SERVO_ANGLE, MAX_SERVO_ANGLE))
                 angle3 = int(np.clip(angle3, MIN_SERVO_ANGLE, MAX_SERVO_ANGLE))
                 
-                checksum = (angle1 + angle2 + angle3) & 0xFF
+                checksum = ((angle1 & 0xFF) + (angle2 & 0xFF) + (angle3 & 0xFF)) & 0xFF
                 
-                self.servo.write(bytes([0xAA, angle1, angle2, angle3, checksum]))
+                packet = struct.pack('BbbbB', 0xAA, angle1, angle2, angle3, checksum)
+                self.servo.write(packet)
             except Exception:
                 print("[SERVO] Send failed")
 
