@@ -28,14 +28,11 @@ Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
 /************************************
  * TYPEDEFS
  ************************************/
- typedef struct msg
+ typedef struct msg_t
  {
   uint8_t start;
-  uint8_t angle1;
-  uint8_t angle2;
-  uint8_t angle3;
-  uint8_t checksum;
- } msg;
+  uint8_t data[4];
+ } msg_t;
 
 /************************************
  * Static Variables
@@ -73,31 +70,26 @@ void loop()
   // Receive message
   if (Serial.available() > 0)
   {
-    // Wait for message
-    uint8_t recv_byte = Serial.read();
-    uint8_t data[MSG_LENGTH - 1]; //Angles and checksum
+    msg_t msg;
+    msg.start = Serial.read();
 
     // If new motor command is sent, process next three bytes
-    if (recv_byte == MSG_START_BYTE)
+    if (msg.start == MSG_START_BYTE)
     {
-      int bytes_read = Serial.readBytes(data, MSG_LENGTH-1);
+      int bytes_read = Serial.readBytes(msg.data, MSG_LENGTH - 1);
 
       // Validate message
-      if ( (bytes_read == MSG_LENGTH-1) && (checksum(data) == 1) )
+      if ( (bytes_read == MSG_LENGTH - 1)) //&& checksum(msg.data))
       {
         // Interpret as signed angles (two’s complement)
-        int8_t a1 = (int8_t)data[0];
-        int8_t a2 = (int8_t)data[1];
-        int8_t a3 = (int8_t)data[2];
+        int8_t raw_a1 = (int8_t)msg.data[0];
+        int8_t raw_a2 = (int8_t)msg.data[1];
+        int8_t raw_a3 = (int8_t)msg.data[2];
 
         // Pulse = SERVO_MID + (-2.5)*angle  (integer math, no float)
-        int32_t p1 = (int32_t)SERVOMID + (int32_t)(-25 * a1) / 10;
-        int32_t p2 = (int32_t)SERVOMID + (int32_t)(-25 * a2) / 10;
-        int32_t p3 = (int32_t)SERVOMID + (int32_t)(-25 * a3) / 10;
-        
-        uint16_t m1_pulse = clampPulse(p1);
-        uint16_t m2_pulse = clampPulse(p2);
-        uint16_t m3_pulse = clampPulse(p3);
+        uint16_t m1_pulse = clampPulse((int32_t)SERVOMID + (int32_t)(-25 * raw_a1) / 10);
+        uint16_t m2_pulse = clampPulse((int32_t)SERVOMID + (int32_t)(-25 * raw_a2) / 10);
+        uint16_t m3_pulse = clampPulse((int32_t)SERVOMID + (int32_t)(-25 * raw_a3) / 10);
 
         pwm.setPWM(0, 0, m1_pulse);
         pwm.setPWM(1, 0, m2_pulse);
@@ -110,16 +102,16 @@ void loop()
 }
 
 //-----------------------------------------------------------------------
-static 
-uint8_t 
+static uint8_t 
 checksum( 
   const uint8_t* data)
 {
-  return (data[3] == (data[0] + data[1] + data[2]) & 0xFF);
+  uint16_t sum = (uint16_t)data[0] + (uint16_t)data[1] + (uint16_t)data[2];
+  return (uint8_t)(data[3] == (uint8_t)((sum) & 0xFF));
 }
 
 //-----------------------------------------------------------------------
-static inline 
+static inline
 uint16_t
 clampPulse(
   int32_t p) 
