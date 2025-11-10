@@ -67,7 +67,13 @@ class BasicPIDController:
         """Send angle command to servo motor (clipped for safety)."""
         if self.servo:
             try:
-                self.servo.write(bytes([angle1,254,angle2,254,angle3,255]))
+                angle1 = int(np.clip(angle1, MIN_SERVO_ANGLE, MAX_SERVO_ANGLE))
+                angle2 = int(np.clip(angle2, MIN_SERVO_ANGLE, MAX_SERVO_ANGLE))
+                angle3 = int(np.clip(angle3, MIN_SERVO_ANGLE, MAX_SERVO_ANGLE))
+                
+                checksum = (angle1 + angle2 + angle3) & 0xFF
+                
+                self.servo.write(bytes([0xAA, angle1, angle2, angle3, checksum]))
             except Exception:
                 print("[SERVO] Send failed")
 
