@@ -35,11 +35,11 @@ class BasicPIDController:
         self.Kd_y = 10.0
         
         # Scale factors for converting from pixels to meters
-        self.scale_factor_x = self.config['calibration']['pixel_to_meter_ratio'] * self.config['camera']['frame_width'] / 2
-        self.scale_factor_y = self.config['calibration']['pixel_to_meter_ratio'] * self.config['camera']['frame_height'] / 2
+        self.scale_factor_x = self.config['calibration']['pixel_to_meter_ratio_x'] * self.config['camera']['frame_width'] / 2
+        self.scale_factor_y = self.config['calibration']['pixel_to_meter_ratio_y'] * self.config['camera']['frame_height'] / 2
 
         # Servo port name
-        self.servo_port = self.config['servo']['port']
+        self.servo_port = "COM3"
         self.servo = None
         
         # Controller-internal state
