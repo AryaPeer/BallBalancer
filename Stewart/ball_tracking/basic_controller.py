@@ -49,8 +49,8 @@ class BasicPIDController:
         self.prev_error = [0.0, 0.0]
         
         # Stewart platform kinematics parameters
-        self.L = self.config['kinematics']['L']  # [m]
-        self.Pz = self.config['kinematics']['Pz']
+        self.L = [0.15, 0.094, 0.080, 0.05],
+        self.Pz = 0.0954
         
         # Data logs for plotting results
         self.time_log = []
@@ -69,7 +69,7 @@ class BasicPIDController:
     def connect_servo(self):
         """Try to open serial connection to servo, return True if success."""
         try:
-            self.servo = serial.Serial(self.servo_port, 115200, timeout=1)
+            self.servo = serial.Serial(self.servo_port, 115200)
             time.sleep(2)
             print("[SERVO] Connected")
             return True
@@ -410,8 +410,8 @@ class BasicPIDController:
         ttk.Separator(self.root, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=8)
         ttk.Label(self.root, text="Setpoints", font=("Arial", 14, "bold")).pack(pady=5)
         
-        pos_min = self.config['calibration']['position_min_m']
-        pos_max = self.config['calibration']['position_max_m']
+        pos_min = -self.config.get('platform_diameter_m', 0.3) / 2
+        pos_max = self.config.get('platform_diameter_m', 0.3) / 2
 
         # X setpoint
         ttk.Label(self.root, text="Setpoint X (meters)", font=("Arial", 10)).pack()
