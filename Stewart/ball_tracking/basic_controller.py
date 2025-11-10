@@ -276,7 +276,6 @@ class BasicPIDController:
 
         return motor_angle1, motor_angle2, motor_angle3
 
-
     #---------------------------------------------------------------------------------- 
     def create_gui(self):
 
@@ -286,81 +285,140 @@ class BasicPIDController:
         self.root.geometry("520x400")
 
         # Title label
-        ttk.Label(self.root, text="PID Gains", font=("Arial", 18, "bold")).pack(pady=10)
+        ttk.Label(self.root, text="X Axis PID Gains", font=("Arial", 16, "bold")).pack(pady=10)
 
         # Kp slider
-        ttk.Label(self.root, text="Kp (Proportional)", font=("Arial", 12)).pack()
-        self.kp_var = tk.DoubleVar(value=self.Kp)
-        kp_slider = ttk.Scale(self.root, from_=0, to=100, variable=self.kp_var,
-                              orient=tk.HORIZONTAL, length=500)
-        kp_slider.pack(pady=5)
-        self.kp_label = ttk.Label(self.root, text=f"Kp: {self.Kp:.1f}", font=("Arial", 11))
-        self.kp_label.pack()
+        ttk.Label(self.root, text="Kp_x (Proportional)", font=("Arial", 11)).pack()
+        self.kp_x_var = tk.DoubleVar(value=self.Kp_x)
+        kp_x_slider = ttk.Scale(self.root, from_=0, to=100, variable=self.kp_x_var,
+                                orient=tk.HORIZONTAL, length=500)
+        kp_x_slider.pack(pady=3)
+        self.kp_x_label = ttk.Label(self.root, text=f"Kp_x: {self.Kp_x:.1f}")
+        self.kp_x_label.pack()
 
-        # Ki slider
-        ttk.Label(self.root, text="Ki (Integral)", font=("Arial", 12)).pack()
-        self.ki_var = tk.DoubleVar(value=self.Ki)
-        ki_slider = ttk.Scale(self.root, from_=0, to=10, variable=self.ki_var,
-                              orient=tk.HORIZONTAL, length=500)
-        ki_slider.pack(pady=5)
-        self.ki_label = ttk.Label(self.root, text=f"Ki: {self.Ki:.1f}", font=("Arial", 11))
-        self.ki_label.pack()
+        # X axis Ki
+        ttk.Label(self.root, text="Ki_x (Integral)", font=("Arial", 11)).pack()
+        self.ki_x_var = tk.DoubleVar(value=self.Ki_x)
+        ki_x_slider = ttk.Scale(self.root, from_=0, to=10, variable=self.ki_x_var,
+                                orient=tk.HORIZONTAL, length=500)
+        ki_x_slider.pack(pady=3)
+        self.ki_x_label = ttk.Label(self.root, text=f"Ki_x: {self.Ki_x:.1f}")
+        self.ki_x_label.pack()
 
-        # Kd slider
-        ttk.Label(self.root, text="Kd (Derivative)", font=("Arial", 12)).pack()
-        self.kd_var = tk.DoubleVar(value=self.Kd)
-        kd_slider = ttk.Scale(self.root, from_=0, to=20, variable=self.kd_var,
-                              orient=tk.HORIZONTAL, length=500)
-        kd_slider.pack(pady=5)
-        self.kd_label = ttk.Label(self.root, text=f"Kd: {self.Kd:.1f}", font=("Arial", 11))
-        self.kd_label.pack()
+        # X axis Kd
+        ttk.Label(self.root, text="Kd_x (Derivative)", font=("Arial", 11)).pack()
+        self.kd_x_var = tk.DoubleVar(value=self.Kd_x)
+        kd_x_slider = ttk.Scale(self.root, from_=0, to=20, variable=self.kd_x_var,
+                                orient=tk.HORIZONTAL, length=500)
+        kd_x_slider.pack(pady=3)
+        self.kd_x_label = ttk.Label(self.root, text=f"Kd_x: {self.Kd_x:.1f}")
+        self.kd_x_label.pack()
 
-        # Setpoint slider
-        ttk.Label(self.root, text="Setpoint (meters)", font=("Arial", 12)).pack()
+        # Separator
+        ttk.Separator(self.root, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=10)
+        
+        # Y axis title
+        ttk.Label(self.root, text="Y Axis PID Gains", font=("Arial", 16, "bold")).pack(pady=10)
+
+        # Y axis Kp
+        ttk.Label(self.root, text="Kp_y (Proportional)", font=("Arial", 11)).pack()
+        self.kp_y_var = tk.DoubleVar(value=self.Kp_y)
+        kp_y_slider = ttk.Scale(self.root, from_=0, to=100, variable=self.kp_y_var,
+                                orient=tk.HORIZONTAL, length=500)
+        kp_y_slider.pack(pady=3)
+        self.kp_y_label = ttk.Label(self.root, text=f"Kp_y: {self.Kp_y:.1f}")
+        self.kp_y_label.pack()
+
+        # Y axis Ki
+        ttk.Label(self.root, text="Ki_y (Integral)", font=("Arial", 11)).pack()
+        self.ki_y_var = tk.DoubleVar(value=self.Ki_y)
+        ki_y_slider = ttk.Scale(self.root, from_=0, to=10, variable=self.ki_y_var,
+                                orient=tk.HORIZONTAL, length=500)
+        ki_y_slider.pack(pady=3)
+        self.ki_y_label = ttk.Label(self.root, text=f"Ki_y: {self.Ki_y:.1f}")
+        self.ki_y_label.pack()
+
+        # Y axis Kd
+        ttk.Label(self.root, text="Kd_y (Derivative)", font=("Arial", 11)).pack()
+        self.kd_y_var = tk.DoubleVar(value=self.Kd_y)
+        kd_y_slider = ttk.Scale(self.root, from_=0, to=20, variable=self.kd_y_var,
+                                orient=tk.HORIZONTAL, length=500)
+        kd_y_slider.pack(pady=3)
+        self.kd_y_label = ttk.Label(self.root, text=f"Kd_y: {self.Kd_y:.1f}")
+        self.kd_y_label.pack()
+
+        # Setpoints
+        ttk.Separator(self.root, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=10)
         pos_min = self.config['calibration']['position_min_m']
         pos_max = self.config['calibration']['position_max_m']
-        self.setpoint_var = tk.DoubleVar(value=self.setpoint)
-        setpoint_slider = ttk.Scale(self.root, from_=pos_min, to=pos_max,
-                                   variable=self.setpoint_var,
-                                   orient=tk.HORIZONTAL, length=500)
-        setpoint_slider.pack(pady=5)
-        self.setpoint_label = ttk.Label(self.root, text=f"Setpoint: {self.setpoint:.3f}m", font=("Arial", 11))
-        self.setpoint_label.pack()
 
-        # Button group for actions
+        # X setpoint
+        ttk.Label(self.root, text="Setpoint X (meters)", font=("Arial", 11)).pack()
+        self.setpoint_x_var = tk.DoubleVar(value=self.setpoint_x)
+        setpoint_x_slider = ttk.Scale(self.root, from_=pos_min, to=pos_max,
+                                     variable=self.setpoint_x_var,
+                                     orient=tk.HORIZONTAL, length=500)
+        setpoint_x_slider.pack(pady=3)
+        self.setpoint_x_label = ttk.Label(self.root, text=f"X: {self.setpoint_x:.3f}m")
+        self.setpoint_x_label.pack()
+
+        # Y setpoint
+        ttk.Label(self.root, text="Setpoint Y (meters)", font=("Arial", 11)).pack()
+        self.setpoint_y_var = tk.DoubleVar(value=self.setpoint_y)
+        setpoint_y_slider = ttk.Scale(self.root, from_=pos_min, to=pos_max,
+                                     variable=self.setpoint_y_var,
+                                     orient=tk.HORIZONTAL, length=500)
+        setpoint_y_slider.pack(pady=3)
+        self.setpoint_y_label = ttk.Label(self.root, text=f"Y: {self.setpoint_y:.3f}m")
+        self.setpoint_y_label.pack()
+
+        # Buttons
         button_frame = ttk.Frame(self.root)
-        button_frame.pack(pady=20)
-        ttk.Button(button_frame, text="Reset Integral",
+        button_frame.pack(pady=15)
+        ttk.Button(button_frame, text="Reset Integrals",
                    command=self.reset_integral).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Plot Results",
                    command=self.plot_results).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="Stop",
                    command=self.stop).pack(side=tk.LEFT, padx=5)
 
-        # Schedule periodic GUI update
         self.update_gui()
-
+        
     #----------------------------------------------------------------------------------
     def update_gui(self):
         """Reflect latest values from sliders into program and update display."""
         if self.running:
             # PID parameters
-            self.Kp = self.kp_var.get()
-            self.Ki = self.ki_var.get()
-            self.Kd = self.kd_var.get()
+            self.Kp = self.kp_x_var.get()
+            self.Ki = self.ki_x_var.get()
+            self.Kd = self.kd_x_var.get()
             self.setpoint = self.setpoint_var.get()
-            # Update displayed values
-            self.kp_label.config(text=f"Kp: {self.Kp:.1f}")
-            self.ki_label.config(text=f"Ki: {self.Ki:.1f}")
-            self.kd_label.config(text=f"Kd: {self.Kd:.1f}")
-            self.setpoint_label.config(text=f"Setpoint: {self.setpoint:.3f}m")
-            # Call again after 50 ms (if not stopped)
+
+            # Y axis gains
+            self.Kp_y = self.kp_y_var.get()
+            self.Ki_y = self.ki_y_var.get()
+            self.Kd_y = self.kd_y_var.get()
+            
+            # Setpoints
+            self.setpoint_x = self.setpoint_x_var.get()
+            self.setpoint_y = self.setpoint_y_var.get()
+            
+            # Update labels
+            self.kp_x_label.config(text=f"Kp_x: {self.Kp_x:.1f}")
+            self.ki_x_label.config(text=f"Ki_x: {self.Ki_x:.1f}")
+            self.kd_x_label.config(text=f"Kd_x: {self.Kd_x:.1f}")
+            self.kp_y_label.config(text=f"Kp_y: {self.Kp_y:.1f}")
+            self.ki_y_label.config(text=f"Ki_y: {self.Ki_y:.1f}")
+            self.kd_y_label.config(text=f"Kd_y: {self.Kd_y:.1f}")
+            self.setpoint_x_label.config(text=f"X: {self.setpoint_x:.3f}m")
+            self.setpoint_y_label.config(text=f"Y: {self.setpoint_y:.3f}m")
+            
             self.root.after(50, self.update_gui)
 
     #----------------------------------------------------------------------------------
     def reset_integral(self):
         """Clear integral error in PID (button handler)."""
-        self.integral = 0.0
+        self.integral = [0.0, 0.0]
         print("[RESET] Integral term reset")
 
     #----------------------------------------------------------------------------------
