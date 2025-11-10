@@ -88,7 +88,7 @@ class BasicPIDController:
 
         # PID output (limit to safe beam range)
         output = P + I + D
-        output = np.clip(output, -15, 15)
+        output = np.clip(output, -18, 18)
 
         print(error)
         return output

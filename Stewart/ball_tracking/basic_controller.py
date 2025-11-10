@@ -38,6 +38,8 @@ class BasicPIDController:
         self.setpoint = (0.0, 0.0)
         self.integral = [0.0, 0.0]
         self.prev_error = [0.0, 0.0]
+        self.L = [0.15, 0.094, 0.080, 0.05] #[m]
+        self.Pz = 0.0954
         # Data logs for plotting results
         self.time_log = []
         self.position_log = []
@@ -171,19 +173,15 @@ class BasicPIDController:
 
                 theta, phi = self.update_pid(position_norm)
 
+
                 # may need to place inverse kinematics function call/eqns here from control output to motor angles
 
-                motor_angle1, motor_angle2, motor_angle3 = self.inverse_kinematics(theta, phi)
+                motor_angle1, motor_angle2, motor_angle3 = self.inverse_kinematics(theta, phi, self.Pz)
 
                 # Send control command to servo (real or simulated)
                 self.send_servo_angle(motor_angle1, motor_angle2, motor_angle3) # change for 3 motors and 2 outputs (x and y)
                 # Log results for plotting
                 current_time = time.time() - self.start_time
-                self.time_log.append(current_time)
-                self.position_log.append(position_norm)
-                self.setpoint_log.append(self.setpoint)
-                self.control_log.append(control_output)
-                print(f"Pos: {position_norm:.3f}m, Output: {control_output:.1f}°")
 
             except queue.Empty:
                 continue
@@ -197,10 +195,76 @@ class BasicPIDController:
             self.send_servo_angle(0)
             self.servo.close()
 
-    def inverse_kinematics(self, theta, phi):
+    def solve_quadratic(self, C, D, E, sign=1):
+        discriminant = D**2 - 4*C*E
+        if discriminant < 0:
+            raise ValueError("Negative discriminant")
+        return (-D + sign * math.sqrt(discriminant)) / (2*C)
+
+    def compute_marker(self, n, Pz, L, coeffs):
+        denom = math.sqrt(n[0]**2 + coeffs[0]*n[1]**2 + coeffs[1]*n[2]**2 + coeffs[2]*n[0]*n[1])
+        scale = L[3] / denom
+        x = scale * coeffs[3] * n[2]
+        y = scale * coeffs[4] * n[2]
+        z = Pz + scale * (coeffs[5]*n[1] + coeffs[6]*n[0])
+        return [x, y, z]
+
+    def compute_theta(self, marker, L, Pmz, sign_y=1):
+        A = -(marker[0] + sign_y * math.sqrt(3) * marker[1] + 2*L[0]) / marker[2]
+        B = (sum(m**2 for m in marker) + L[1]**2 - L[2]**2 - L[0]**2) / (2 * marker[2])
+        C = A**2 + 4
+        D = 2*A*B + 4*L[0]
+        E = B**2 + L[0]**2 - L[1]**2
+        x = self.solve_quadratic(C, D, E, sign=-1)
+        y = sign_y * math.sqrt(3) * x
+        z = math.sqrt(L[1]**2 - 4*x**2 - 4*L[0]*x - L[0]**2)
+        if marker[2] < Pmz:
+            z = -z
+        return 90 - math.degrees(math.atan2(math.sqrt(x**2 + y**2) - L[0], z))
+
+
+    def inverse_kinematics(self, theta, phi, Pz):
         # inverse kinematic equations for converting platform tilt into motor angles
+        z = math.cos(math.radians(phi))
+        r = math.sin(math.radians(phi))
+        x = r*math.cos(math.radians(theta))
+        y = r*math.sin(math.radians(theta))
+        n = [x, y, z]
+        L = self.L
+        L01 = L[0] + L[1]
+        # Base point
+        A = L01 / Pz
+        B = (Pz**2 + L[2]**2 - L01**2 - L[3]**2) / (2 * Pz)
+        C = A**2 + 1
+        D = 2 * (A * B - L01)
+        E = B**2 + L01**2 - L[2]**2
+        Pmx = self.solve_quadratic(C, D, E, sign=-1)
+        Pmz = math.sqrt(L[2]**2 - Pmx**2 + 2 * L01 * Pmx - L01**2)
 
+        # A marker
+        a_m = self.compute_marker(n, Pz, L, [0, 1, 0, 1, 0, 0, -1])
+        A = (L[0] - a_m[0]) / a_m[2]
+        B = (sum(m**2 for m in a_m) - L[2]**2 - L[0]**2 + L[1]**2) / (2 * a_m[2])
+        C = A**2 + 1
+        D = 2 * (A * B - L[0])
+        E = B**2 + L[0]**2 - L[1]**2
+        ax = self.solve_quadratic(C, D, E, sign=-1)
+        az = math.sqrt(L[1]**2 - ax**2 + 2 * L[0] * ax - L[0]**2)
+        if a_m[2] < Pmz:
+            az = -az
+        motor_angle1 = 90 - math.degrees(math.atan2(ax - L[0], az))
 
+        # B and C markers
+        b_m = self.compute_marker(n, Pz, L, [3, 4, 2 * math.sqrt(3), -1, -math.sqrt(3), math.sqrt(3), 1])
+        motor_angle2 = self.compute_theta(b_m, L, Pmz, sign_y=1)
+
+        c_m = self.compute_marker(n, Pz, L, [3, 4, -2 * math.sqrt(3), -1, math.sqrt(3), -math.sqrt(3), 1])
+        motor_angle3 = self.compute_theta(c_m, L, Pmz, sign_y=-1)
+
+        print("Motor angles:")
+        print(motor_angle1)
+        print(motor_angle2)
+        print(motor_angle3)
 
         return motor_angle1, motor_angle2, motor_angle3
 
