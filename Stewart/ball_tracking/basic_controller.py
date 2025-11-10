@@ -49,7 +49,7 @@ class BasicPIDController:
         self.prev_error = [0.0, 0.0]
         
         # Stewart platform kinematics parameters
-        self.L = [0.15, 0.094, 0.080, 0.05],
+        self.L = [0.15, 0.094, 0.080, 0.05]
         self.Pz = 0.0954
         
         # Data logs for plotting results
