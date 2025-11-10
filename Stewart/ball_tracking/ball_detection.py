@@ -144,13 +144,10 @@ class BallDetector:
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
         
         return overlay, found, position_m
-    
-# Legacy function for backward compatibility with existing code
+
 def detect_ball_xy(frame):
-    """Legacy function that matches the old ball_detection.py interface.
-    
-    This function maintains compatibility with existing code that expects
-    the original function signature and return format.
+    """
+    Detects ball and returns normalized x and y positions
     
     Args:
         frame: Input BGR image frame
@@ -158,6 +155,7 @@ def detect_ball_xy(frame):
     Returns:
         found (bool): True if ball detected
         x_normalized (float): Normalized x position (-1 to +1)
+        y_normalized (float): Normalized y position (-1 to +1)
         vis_frame (array): Frame with detection overlay
     """
     # Create detector instance using default config

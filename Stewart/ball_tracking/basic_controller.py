@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from threading import Thread
 import queue
 from ball_detection import detect_ball_xy
+import math
 
 MIN_SERVO_ANGLE = 80   # Min allowable sent servo angle
 MAX_SERVO_ANGLE = 130  # Min allowable sent servo angle
@@ -26,15 +27,17 @@ class BasicPIDController:
         self.Ki = 1.5
         self.Kd = 10.0
         # Scale factor for converting from pixels to meters
-        self.scale_factor = self.config['calibration']['pixel_to_meter_ratio'] * self.config['camera']['frame_width'] / 2
+        self.scale_factor_x = self.config['calibration']['pixel_to_meter_ratio'] * self.config['camera']['frame_width'] / 2
+        self.scale_factor_y = self.config['calibration']['pixel_to_meter_ratio'] * self.config['camera']['frame_width'] / 2
+
         # Servo port name and center angle
         self.servo_port = self.config['servo']['port']
         self.neutral_angle = self.config['servo']['neutral_angle']
         self.servo = None
         # Controller-internal state
         self.setpoint = (0.0, 0.0)
-        self.integral = (0.0, 0.0)
-        self.prev_error = (0.0, 0.0)
+        self.integral = [0.0, 0.0]
+        self.prev_error = [0.0, 0.0]
         # Data logs for plotting results
         self.time_log = []
         self.position_log = []
@@ -58,13 +61,11 @@ class BasicPIDController:
             return False
 
     #----------------------------------------------------------------------------------
-    def send_servo_angle(self, angle):
+    def send_servo_angle(self, angle1, angle2, angle3):
         """Send angle command to servo motor (clipped for safety)."""
         if self.servo:
-            servo_angle = self.neutral_angle + angle
-            servo_angle = int(np.clip(servo_angle, MIN_SERVO_ANGLE, MAX_SERVO_ANGLE))
             try:
-                self.servo.write(bytes([servo_angle]))
+                self.servo.write(bytes([angle1,254,angle2,254,angle3,255]))
             except Exception:
                 print("[SERVO] Send failed")
 
@@ -73,14 +74,6 @@ class BasicPIDController:
         """Perform PID calculation and return control output."""
 
         ### from ball position/error, find desired roll and pitch
-        ### create rotational matrix for converting desired roll/pitch into motor angle
-        ### send each individual ange into PID control
-
-        # desired_roll =
-        # desired_pitch =
-
-        # rotational_roll_matrix = []
-        # rotational_pitch_matrix = []
 
         scale = 20
 
@@ -105,14 +98,22 @@ class BasicPIDController:
         Dx = self.Kd * derivative_x
         Dy = self.Kd * derivative_y
 
-        self.prev_error = (error_x, error_y)
+        self.prev_error = [error_x, error_y]
 
         # PID output (limit to safe beam range)
-        output = P + I + D
-        output = np.clip(output, -15, 15)
+        output = [Px + Ix + Dx, Py+ Iy+ Dy]
+        # output[0] = np.clip(output[0], -15, 15)
+        # output[1] = np.clip(output[1], -15, 15)
 
-        print(error)
-        return output
+        theta = math.degrees(math.atan2(output[1], output[0]))
+        if theta < 0:
+            theta += 360
+        phi = math.sqrt(output[0]**2 + output[1]**2)
+
+        print(error_x)
+        print(error_y)
+
+        return theta, phi
 
     #----------------------------------------------------------------------------------
     def camera_thread(self):
@@ -136,7 +137,7 @@ class BasicPIDController:
                 position_mx = x_normalized * self.scale_factor
                 position_my = y_normalized * self.scale_factor
 
-                position_norm = (position_mx, position_my)
+                position_norm = [position_mx, position_my]
                 # Always keep latest measurement only
                 try:
                     if self.position_queue.full():
@@ -168,9 +169,14 @@ class BasicPIDController:
                 position_norm = self.position_queue.get(timeout=0.1)
                 # Compute control output using PID
 
-                control_output = self.update_pid(position_norm)
+                theta, phi = self.update_pid(position_norm)
+
+                # may need to place inverse kinematics function call/eqns here from control output to motor angles
+
+                motor_angle1, motor_angle2, motor_angle3 = self.inverse_kinematics(theta, phi)
+
                 # Send control command to servo (real or simulated)
-                self.send_servo_angle(control_output)
+                self.send_servo_angle(motor_angle1, motor_angle2, motor_angle3) # change for 3 motors and 2 outputs (x and y)
                 # Log results for plotting
                 current_time = time.time() - self.start_time
                 self.time_log.append(current_time)
@@ -190,6 +196,14 @@ class BasicPIDController:
             # Return to neutral on exit
             self.send_servo_angle(0)
             self.servo.close()
+
+    def inverse_kinematics(self, theta, phi):
+        # inverse kinematic equations for converting platform tilt into motor angles
+
+
+
+        return motor_angle1, motor_angle2, motor_angle3
+
 
     #---------------------------------------------------------------------------------- 
     def create_gui(self):
