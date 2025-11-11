@@ -25,21 +25,21 @@ class BasicPIDController:
             self.config = json.load(f)
         
         # PID gains for X axis (controlled by sliders in GUI)
-        self.Kp_x = 6.0
-        self.Ki_x = 1.5
-        self.Kd_x = 10.0
+        self.Kp_x = 1.5
+        self.Ki_x = 0.4
+        self.Kd_x = 2.5
         
         # PID gains for Y axis
-        self.Kp_y = 6.0
-        self.Ki_y = 1.5
-        self.Kd_y = 10.0
-        
+        self.Kp_y = 1.5
+        self.Ki_y = 0.4
+        self.Kd_y = 2.5
+
         # Scale factors for converting from pixels to meters
         self.scale_factor_x = self.config['calibration']['pixel_to_meter_ratio_x'] * self.config['camera']['frame_width'] / 2
         self.scale_factor_y = self.config['calibration']['pixel_to_meter_ratio_y'] * self.config['camera']['frame_height'] / 2
 
         # Servo port name
-        self.servo_port = "COM3"
+        self.servo_port = "COM5"
         self.servo = None
         
         # Controller-internal state
@@ -49,8 +49,8 @@ class BasicPIDController:
         self.prev_error = [0.0, 0.0]
         
         # Stewart platform kinematics parameters
-        self.L = [0.15, 0.094, 0.080, 0.05]
-        self.Pz = 0.0954
+        self.L = [0.050, 0.080, 0.1085, 0.14056] 
+        self.Pz = 0.0824
         
         # Data logs for plotting results
         self.time_log = []
@@ -70,11 +70,11 @@ class BasicPIDController:
         """Try to open serial connection to servo, return True if success."""
         try:
             self.servo = serial.Serial(self.servo_port, 115200)
-            time.sleep(2)
+            time.sleep(1)
             print("[SERVO] Connected")
             return True
         except Exception as e:
-            print(f"[SERVO] Failed: {e}")
+            SystemExit()
             return False
 
     #----------------------------------------------------------------------------------
@@ -92,7 +92,9 @@ class BasicPIDController:
 
                 packet = struct.pack('BbbbB', 0xAA, angle1, angle2, angle3, checksum)
                 self.servo.write(packet)
-                
+
+                print(f"[SERVO] Sent: {packet}")
+
             except Exception as e:
                 print(f"[SERVO] Send failed: {e}")
 
@@ -100,24 +102,44 @@ class BasicPIDController:
     def update_pid(self, position, dt=0.033):
         """Perform PID calculation and return control output (theta, phi)."""
         
-        # Scale error for easier tuning
-        scale = 20
+        # Scale error for easier tuning - REDUCED FOR TESTING
+        scale = 5  # Was 20 - now 1/4 of original
         
         # Compute errors
-        error_x = (self.setpoint_x - position[0]) * scale
-        error_y = (self.setpoint_y - position[1]) * scale
+        # Fixed (CORRECT):
+        error_x = (position[0] - self.setpoint_x) * scale  # FLIPPED
+        error_y = (position[1] - self.setpoint_y) * scale  # FLIPPED
+        
+        # Clamp errors to prevent impossible positions
+        MAX_ERROR = 0.3
+        error_x = np.clip(error_x, -MAX_ERROR * scale, MAX_ERROR * scale)
+        error_y = np.clip(error_y, -MAX_ERROR * scale, MAX_ERROR * scale)
 
         # X-axis PID
         Px = self.Kp_x * error_x
-        self.integral[0] += error_x * dt
+        
+        # Anti-windup - only integrate when not saturated
+        output_x_test = Px + self.Ki_x * self.integral[0]
+        if abs(output_x_test) < 4:  # Reduced threshold
+            self.integral[0] += error_x * dt
+        
+        # Clamp integral term
+        self.integral[0] = np.clip(self.integral[0], -10, 10)  # Reduced from 30
         Ix = self.Ki_x * self.integral[0]
+        
         derivative_x = (error_x - self.prev_error[0]) / dt
         Dx = self.Kd_x * derivative_x
         
-        # Y-axis PID
+        # Y-axis PID (same fixes)
         Py = self.Kp_y * error_y
-        self.integral[1] += error_y * dt
+        
+        output_y_test = Py + self.Ki_y * self.integral[1]
+        if abs(output_y_test) < 4:  # Reduced threshold
+            self.integral[1] += error_y * dt
+        
+        self.integral[1] = np.clip(self.integral[1], -10, 10)  # Reduced from 30
         Iy = self.Ki_y * self.integral[1]
+        
         derivative_y = (error_y - self.prev_error[1]) / dt
         Dy = self.Kd_y * derivative_y
         
@@ -128,9 +150,9 @@ class BasicPIDController:
         output_x = Px + Ix + Dx
         output_y = Py + Iy + Dy
         
-        # Clip outputs
-        output_x = np.clip(output_x, -15, 15)
-        output_y = np.clip(output_y, -15, 15)
+        # ULTRA CONSERVATIVE output limits for testing
+        output_x = np.clip(output_x, -5, 5)  # Was -15, now -5
+        output_y = np.clip(output_y, -5, 5)  # Was -15, now -5
 
         # Convert to polar coordinates (theta, phi)
         theta = math.degrees(math.atan2(output_y, output_x))
@@ -138,8 +160,8 @@ class BasicPIDController:
             theta += 360
         phi = math.sqrt(output_x**2 + output_y**2)
         
-        # Limit phi to reasonable range
-        phi = np.clip(phi, 0, 15)
+        # SUPER CONSERVATIVE phi limit for testing
+        phi = np.clip(phi, 0, 5)  # Was 15, now just 5°
 
         print(f"Err: ({error_x:.2f}, {error_y:.2f}) | Out: ({output_x:.2f}, {output_y:.2f}) | θ={theta:.1f}°, φ={phi:.2f}°")
 

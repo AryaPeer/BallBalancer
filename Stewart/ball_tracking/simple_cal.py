@@ -18,7 +18,7 @@ class SimpleAutoCalibrator:
         self.PLATFORM_DIAMETER = 0.3  # Known platform diameter in meters
         
         # Camera configuration
-        self.CAM_INDEX = 1 # Default camera index (1 for external USB camera)
+        self.CAM_INDEX = 0 # Default camera index (1 for external USB camera)
         self.FRAME_W, self.FRAME_H = 700, 480  # Frame dimensions
         
         # Calibration state tracking

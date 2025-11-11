@@ -1,42 +1,42 @@
 {
-  "timestamp": "2025-11-10T16:53:41.320226",
+  "timestamp": "2025-11-10T22:34:43.501651",
   "platform_diameter_m": 0.3,
   "camera": {
-    "index": 1,
+    "index": 0,
     "frame_width": 700,
     "frame_height": 480
   },
   "ball_detection": {
     "lower_hsv": [
-      16.0,
-      116.0,
-      245.0
+      8.0,
+      107.0,
+      141.0
     ],
     "upper_hsv": [
-      33.0,
-      184.0,
-      255.0
+      23.0,
+      191.0,
+      225.0
     ]
   },
   "calibration": {
-    "pixel_to_meter_ratio_x": 0.0006599466124784883,
-    "pixel_to_meter_ratio_y": 0.0006852870235732763,
+    "pixel_to_meter_ratio_x": 0.00030853464833670855,
+    "pixel_to_meter_ratio_y": 0.00030853464833670855,
     "peg_points": [
       [
-        110,
-        218
+        59,
+        201
       ],
       [
-        564,
-        241
+        558,
+        208
       ],
       [
-        341,
-        31
+        316,
+        5
       ],
       [
-        315,
-        468
+        329,
+        474
       ]
     ]
   }
