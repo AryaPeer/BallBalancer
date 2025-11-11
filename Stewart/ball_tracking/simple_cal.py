@@ -116,8 +116,8 @@ class SimpleAutoCalibrator:
 
         
         # Convert to meters using known platform diameter
-        self.pixel_to_meter_ratio_x = self.PLATFORM_DIAMETER / pixel_distance_x
-        self.pixel_to_meter_ratio_y = self.PLATFORM_DIAMETER / pixel_distance_y
+        self.pixel_to_meter_ratio_x = (self.PLATFORM_DIAMETER/2)/ pixel_distance_x
+        self.pixel_to_meter_ratio_y = (self.PLATFORM_DIAMETER/2) / pixel_distance_y
         print(f"[GEO] Pixel-to-meter ratio: x = {self.pixel_to_meter_ratio_x:.6f}, y = {self.pixel_to_meter_ratio_y:.6f}")
         
         # Advance to complete phase

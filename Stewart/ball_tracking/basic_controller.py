@@ -104,9 +104,9 @@ class BasicPIDController:
         
         # Compute errors
         # Fixed (CORRECT):
-        error_x = (position[0] - self.setpoint_x)  # FLIPPED
-        error_y = (position[1] - self.setpoint_y)  # FLIPPED
-        
+        error_x = (self.setpoint_x - position[0])  # FLIPPED
+        error_y = (self.setpoint_y - position[1])  # FLIPPED
+
         # Clamp errors to prevent impossible positions
         MAX_ERROR = 0.15
         error_x = np.clip(error_x, -MAX_ERROR, MAX_ERROR)
@@ -130,11 +130,9 @@ class BasicPIDController:
         # Y-axis PID (same fixes)
         Py = self.Kp_y * error_y
         
-        output_y_test = Py + self.Ki_y * self.integral[1]
-        if abs(output_y_test) < 4:  # Reduced threshold
-            self.integral[1] += error_y * dt
+        self.integral[1] += error_y * dt
         
-        self.integral[1] = np.clip(self.integral[1], -10, 10)  # Reduced from 30
+        self.integral[1] = np.clip(self.integral[1], -30, 30)  # Reduced from 30
         Iy = self.Ki_y * self.integral[1]
         
         derivative_y = (error_y - self.prev_error[1]) / dt
@@ -148,8 +146,8 @@ class BasicPIDController:
         output_y = Py + Iy + Dy
         
         # ULTRA CONSERVATIVE output limits for testing
-        output_x = np.clip(output_x, -5, 5)  # Was -15, now -5
-        output_y = np.clip(output_y, -5, 5)  # Was -15, now -5
+        output_x = np.clip(output_x, -15, 15)  # Was -15, now -5
+        output_y = np.clip(output_y, -15, 15)  # Was -15, now -5
 
         # Convert to polar coordinates (theta, phi)
         theta = math.degrees(math.atan2(output_y, output_x))
@@ -158,7 +156,7 @@ class BasicPIDController:
         phi = math.sqrt(output_x**2 + output_y**2)
         
         # SUPER CONSERVATIVE phi limit for testing
-        phi = np.clip(phi, 0, 5)  # Was 15, now just 5°
+        phi = np.clip(phi, 0, 15)  # Was 15, now just 5°
 
         print(f"Err: ({error_x:.2f}, {error_y:.2f}) | Out: ({output_x:.2f}, {output_y:.2f}) | θ={theta:.1f}°, φ={phi:.2f}°")
 
