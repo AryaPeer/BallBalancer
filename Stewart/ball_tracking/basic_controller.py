@@ -107,8 +107,11 @@ class BasicPIDController:
         error_y = (position[1] - self.setpoint_y)
         print ("Actual Errors:", error_x, error_y)
 
+        error_x = 10.0 * error_x
+        error_y = 10.0 * error_y
+
         # Clamp errors to prevent impossible positions
-        MAX_ERROR = 0.15
+        MAX_ERROR = 0.5
         error_x = np.clip(error_x, -MAX_ERROR, MAX_ERROR)
         error_y = np.clip(error_y, -MAX_ERROR, MAX_ERROR)
 

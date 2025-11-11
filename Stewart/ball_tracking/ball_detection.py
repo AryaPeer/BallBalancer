@@ -89,7 +89,7 @@ class BallDetector:
         normalized_y = (y - center_y) / center_y  # Normalize to -1 to +1 range
         
         position_x_m = normalized_x * self.scale_factor
-        position_y_m = -normalized_y * self.scale_factor
+        position_y_m = normalized_y * self.scale_factor
 
         return True, (int(x), int(y)), radius, (position_x_m, position_y_m)
 
