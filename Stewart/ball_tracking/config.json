@@ -1,28 +1,43 @@
 {
-  "timestamp": "2025-11-09T00:00:00.000000",
-  "platform_type": "stewart",
-  "platform_radius_m": 0.10,
+  "timestamp": "2025-11-10T16:53:41.320226",
+  "platform_diameter_m": 0.3,
   "camera": {
     "index": 1,
-    "frame_width": 640,
+    "frame_width": 700,
     "frame_height": 480
   },
   "ball_detection": {
-    "lower_hsv": [5, 150, 150],
-    "upper_hsv": [20, 255, 255]
+    "lower_hsv": [
+      16.0,
+      116.0,
+      245.0
+    ],
+    "upper_hsv": [
+      33.0,
+      184.0,
+      255.0
+    ]
   },
   "calibration": {
-    "pixel_to_meter_ratio": 0.0003,
-    "position_min_m": -0.08,
-    "position_max_m": 0.08
-  },
-  "servo": {
-    "port": "COM3",
-    "num_servos": 3,
-    "use_pwm_driver": true
-  },
-  "kinematics": {
-    "L": [0.15, 0.094, 0.080, 0.05],
-    "Pz": 0.0954
+    "pixel_to_meter_ratio_x": 0.0006599466124784883,
+    "pixel_to_meter_ratio_y": 0.0006852870235732763,
+    "peg_points": [
+      [
+        110,
+        218
+      ],
+      [
+        564,
+        241
+      ],
+      [
+        341,
+        31
+      ],
+      [
+        315,
+        468
+      ]
+    ]
   }
 }
