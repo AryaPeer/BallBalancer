@@ -103,9 +103,9 @@ class BasicPIDController:
         """Perform PID calculation and return control output (theta, phi)."""
         
         # Compute errors
-        # Fixed (CORRECT):
-        error_x = (self.setpoint_x - position[0])  # FLIPPED
-        error_y = (self.setpoint_y - position[1])  # FLIPPED
+        error_x = (position[0] - self.setpoint_x)
+        error_y = (position[1] - self.setpoint_y)
+        print ("Actual Errors:", error_x, error_y)
 
         # Clamp errors to prevent impossible positions
         MAX_ERROR = 0.15
@@ -114,16 +114,10 @@ class BasicPIDController:
 
         # X-axis PID
         Px = self.Kp_x * error_x
-        
-        # Anti-windup - only integrate when not saturated
-        output_x_test = Px + self.Ki_x * self.integral[0]
-        if abs(output_x_test) < 4:  # Reduced threshold
-            self.integral[0] += error_x * dt
-        
-        # Clamp integral term
-        self.integral[0] = np.clip(self.integral[0], -10, 10)  # Reduced from 30
+
+        self.integral[0] += error_x * dt
         Ix = self.Ki_x * self.integral[0]
-        
+
         derivative_x = (error_x - self.prev_error[0]) / dt
         Dx = self.Kd_x * derivative_x
         
@@ -131,8 +125,6 @@ class BasicPIDController:
         Py = self.Kp_y * error_y
         
         self.integral[1] += error_y * dt
-        
-        self.integral[1] = np.clip(self.integral[1], -30, 30)  # Reduced from 30
         Iy = self.Ki_y * self.integral[1]
         
         derivative_y = (error_y - self.prev_error[1]) / dt
@@ -144,21 +136,20 @@ class BasicPIDController:
         # PID outputs
         output_x = Px + Ix + Dx
         output_y = Py + Iy + Dy
-        
-        # ULTRA CONSERVATIVE output limits for testing
-        output_x = np.clip(output_x, -15, 15)  # Was -15, now -5
-        output_y = np.clip(output_y, -15, 15)  # Was -15, now -5
+        print("PID Outputs (x,y):", output_x, output_y)
 
-        # Convert to polar coordinates (theta, phi)
         theta = math.degrees(math.atan2(output_y, output_x))
+
         if theta < 0:
             theta += 360
-        phi = math.sqrt(output_x**2 + output_y**2)
-        
-        # SUPER CONSERVATIVE phi limit for testing
-        phi = np.clip(phi, 0, 15)  # Was 15, now just 5°
+        print ("Theta (degrees):", theta)
 
-        print(f"Err: ({error_x:.2f}, {error_y:.2f}) | Out: ({output_x:.2f}, {output_y:.2f}) | θ={theta:.1f}°, φ={phi:.2f}°")
+        phi = math.sqrt(output_x**2 + output_y**2)
+        print("Raw phi:", phi)
+        phi = np.clip(phi, 0, 15) 
+        print("Clipped phi:", phi)
+
+     #   print(f"Err: ({error_x:.2f}, {error_y:.2f}) | Out: ({output_x:.2f}, {output_y:.2f}) | θ={theta:.1f}°, φ={phi:.2f}°")
 
         return theta, phi
 
@@ -216,8 +207,12 @@ class BasicPIDController:
                 # Wait for latest ball position from camera
                 position_m = self.position_queue.get(timeout=0.1)
                 
+                print("This is the position of the ball (X,Y):", position_m)
+                
                 # Compute control output using PID
                 theta, phi = self.update_pid(position_m)
+
+                print("Done updating PID")
 
                 # Convert to motor angles using inverse kinematics
                 try:
