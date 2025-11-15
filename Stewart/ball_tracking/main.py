@@ -13,14 +13,14 @@ class App:
         with open(config_file, 'r') as f:
             self.config = json.load(f)
 
-        self.ball_detector = BallDetector(config_file)
-        self.pid = PIDController(self.config)
-        self.kinematics = StewartKinematics()
-        self.gui = StewartGUI(self.pid, self.config, self.stop)
-
         self.position_queue = queue.Queue(maxsize=1)
         self.running = [False]
         self.start_time = [None]
+
+        self.ball_detector = BallDetector(config_file)
+        self.pid = PIDController(self.config)
+        self.kinematics = StewartKinematics()
+        self.gui = StewartGUI(self.pid, self.config, self.stop, self.running)
 
     def stop(self):
         self.running[0] = False

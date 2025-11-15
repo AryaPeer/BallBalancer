@@ -4,11 +4,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 class StewartGUI:
-    def __init__(self, pid_controller, config, on_stop_callback):
+    def __init__(self, pid_controller, config, on_stop_callback, running_flag):
         self.pid = pid_controller
         self.config = config
         self.on_stop_callback = on_stop_callback
-        self.running = True
+        self.running = running_flag
 
         self.time_log = []
         self.position_x_log = []
@@ -114,7 +114,7 @@ class StewartGUI:
         self.update_gui()
 
     def update_gui(self):
-        if self.running:
+        if self.running[0]:
             self.pid.Kp_x = self.kp_x_var.get()
             self.pid.Ki_x = self.ki_x_var.get()
             self.pid.Kd_x = self.kd_x_var.get()
@@ -177,7 +177,7 @@ class StewartGUI:
         plt.show()
 
     def stop(self):
-        self.running = False
+        self.running[0] = False
         try:
             self.root.quit()
             self.root.destroy()

@@ -80,8 +80,7 @@ class PIDController:
             print("[SERVO] Connected")
             return True
         except Exception as e:
-            SystemExit()
-            return False
+            raise SystemExit("Servo connection failed: " + str(e))
 
     def send_servo_angle(self, angle1, angle2, angle3):
         if self.servo:
