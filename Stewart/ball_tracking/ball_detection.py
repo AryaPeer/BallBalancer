@@ -4,176 +4,131 @@ import json
 import os
 
 class BallDetector:
-    """Computer vision ball detector using HSV color space filtering."""
-    
     def __init__(self, config_file="config.json"):
-        """Initialize ball detector with HSV bounds from config file.
+        self.lower_hsv = np.array([5, 150, 150], dtype=np.uint8)
+        self.upper_hsv = np.array([20, 255, 255], dtype=np.uint8)
+        self.scale_factor_x = 1.0
+        self.scale_factor_y = 1.0
+        self.config = None
         
-        Args:
-            config_file (str): Path to JSON config file with HSV bounds and calibration
-        """
-        # Default HSV bounds for orange ball detection
-        self.lower_hsv = np.array([5, 150, 150], dtype=np.uint8)  # Orange lower bound
-        self.upper_hsv = np.array([20, 255, 255], dtype=np.uint8)  # Orange upper bound
-        self.scale_factor = 1.0  # Conversion factor from normalized coords to meters
-        
-        # Load configuration from file if it exists
         if os.path.exists(config_file):
             try:
                 with open(config_file, 'r') as f:
-                    config = json.load(f)
-                
-                # Extract HSV color bounds from config
-                if 'ball_detection' in config:
-                    if config['ball_detection']['lower_hsv']:
-                        self.lower_hsv = np.array(config['ball_detection']['lower_hsv'], dtype=np.uint8)
-                    if config['ball_detection']['upper_hsv']:
-                        self.upper_hsv = np.array(config['ball_detection']['upper_hsv'], dtype=np.uint8)
-                
-                # Extract scale factor for position conversion from pixels to meters
-                if 'calibration' in config and 'pixel_to_meter_ratio' in config['calibration']:
-                    if config['calibration']['pixel_to_meter_ratio']:
-                        frame_width = config.get('camera', {}).get('frame_width', 640)
-                        self.scale_factor = config['calibration']['pixel_to_meter_ratio'] * (frame_width / 2)
-                
+                    self.config = json.load(f)
+
+                if 'ball_detection' in self.config:
+                    if self.config['ball_detection']['lower_hsv']:
+                        self.lower_hsv = np.array(self.config['ball_detection']['lower_hsv'], dtype=np.uint8)
+                    if self.config['ball_detection']['upper_hsv']:
+                        self.upper_hsv = np.array(self.config['ball_detection']['upper_hsv'], dtype=np.uint8)
+
+                if 'calibration' in self.config:
+                    self.scale_factor_x = self.config['calibration']['pixel_to_meter_ratio_x'] * self.config['camera']['frame_width'] / 2
+                    self.scale_factor_y = self.config['calibration']['pixel_to_meter_ratio_y'] * self.config['camera']['frame_height'] / 2
+
                 print(f"[BALL_DETECT] Loaded HSV bounds: {self.lower_hsv} to {self.upper_hsv}")
-                print(f"[BALL_DETECT] Scale factor: {self.scale_factor:.6f} m/normalized_unit")
-                
+                print(f"[BALL_DETECT] Scale factors: X={self.scale_factor_x:.6f}, Y={self.scale_factor_y:.6f}")
+
             except Exception as e:
                 print(f"[BALL_DETECT] Config load error: {e}, using defaults")
         else:
             print("[BALL_DETECT] No config file found, using default HSV bounds")
 
     def detect_ball(self, frame):
-        """Detect ball in frame and return detection results.
-        
-        Args:
-            frame: Input BGR image frame
-            
-        Returns:
-            found (bool): True if ball detected
-            center (tuple): (x, y) pixel coordinates of ball center
-            radius (float): Ball radius in pixels
-            position_m (float): Ball position in meters from center
-        """
-        # Convert frame from BGR to HSV color space for better color filtering
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        
-        # Create binary mask using HSV color bounds
         mask = cv2.inRange(hsv, self.lower_hsv, self.upper_hsv)
-        
-        # Clean up mask using morphological operations
-        mask = cv2.erode(mask, None, iterations=2)  # Remove noise
-        mask = cv2.dilate(mask, None, iterations=2)  # Fill gaps
-        
-        # Find all contours in the cleaned mask
+        mask = cv2.erode(mask, None, iterations=2)
+        mask = cv2.dilate(mask, None, iterations=2)
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         if not contours:
             return False, None, None, (0.0, 0.0)
-        
-        # Select the largest contour (assumed to be the ball)
+
         largest_contour = max(contours, key=cv2.contourArea)
-        
-        # Get minimum enclosing circle around the contour
         ((x, y), radius) = cv2.minEnclosingCircle(largest_contour)
-        
-        # Filter out detections that are too small or too large
+
         if radius < 5 or radius > 100:
-            return False, None, None, 0.0
-        
-        # Convert pixel position to meters from center
-        center_x = frame.shape[1] // 2  # Frame center x-coordinate
-        center_y = frame.shape[0] // 2  # Frame center y-coordinate
-        normalized_x = (x - center_x) / center_x  # Normalize to -1 to +1 range
-        normalized_y = (y - center_y) / center_y  # Normalize to -1 to +1 range
-        
-        position_x_m = normalized_x * self.scale_factor
-        position_y_m = normalized_y * self.scale_factor
+            return False, None, None, (0.0, 0.0)
+
+        center_x = frame.shape[1] // 2
+        center_y = frame.shape[0] // 2
+        normalized_x = (x - center_x) / center_x
+        normalized_y = (y - center_y) / center_y
+
+        position_x_m = normalized_x * self.scale_factor_x
+        position_y_m = normalized_y * self.scale_factor_y
 
         return True, (int(x), int(y)), radius, (position_x_m, position_y_m)
 
     def draw_detection(self, frame, show_info=True):
-        """Detect ball and draw detection overlay on frame.
-        
-        Args:
-            frame: Input BGR image frame
-            show_info (bool): Whether to display position information text
-            
-        Returns:
-            frame_with_overlay: Frame with detection drawn
-            found: True if ball detected
-            position_m: Ball position in meters
-        """
-        # Perform ball detection
         found, center, radius, position_m = self.detect_ball(frame)
-        
-        # Create overlay copy for drawing
         overlay = frame.copy()
-        
-        # Draw vertical center reference line
         height, width = frame.shape[:2]
         center_x = width // 2
         center_y = height // 2
 
         cv2.line(overlay, (center_x, 0), (center_x, height), (255, 255, 255), 1)
         cv2.line(overlay, (0, center_y), (width, center_y), (255, 255, 255), 1)
+        cv2.putText(overlay, "Center", (center_x + 5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
-        cv2.putText(overlay, "Center", (center_x + 5, 20),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-        
         if found:
-            # Draw circle around detected ball
-            cv2.circle(overlay, center, int(radius), (0, 255, 0), 2)  # Green circle
-            cv2.circle(overlay, center, 3, (0, 255, 0), -1)  # Green center dot
-
+            cv2.circle(overlay, center, int(radius), (0, 255, 0), 2)
+            cv2.circle(overlay, center, 3, (0, 255, 0), -1)
             cv2.line(overlay, (center_x, center_y), center, (0, 255, 255), 1)
             
             if show_info:
                 x_m, y_m = position_m
-                
-                cv2.putText(overlay, f"px: ({center[0]}, {center[1]})", (center[0] - 50, center[1] - 50),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
-                cv2.putText(overlay, f"x: {x_m:.4f}m", (center[0] - 40, center[1] - 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
-                cv2.putText(overlay, f"y: {y_m:.4f}m", (center[0] - 40, center[1] - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
-                
+                cv2.putText(overlay, f"px: ({center[0]}, {center[1]})", (center[0] - 50, center[1] - 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
+                cv2.putText(overlay, f"x: {x_m:.4f}m", (center[0] - 40, center[1] - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+                cv2.putText(overlay, f"y: {y_m:.4f}m", (center[0] - 40, center[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
                 distance = np.sqrt(x_m**2 + y_m**2)
-                cv2.putText(overlay, f"dist: {distance:.4f}m", (center[0] - 45, center[1] + 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
-        
+                cv2.putText(overlay, f"dist: {distance:.4f}m", (center[0] - 45, center[1] + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
+
         return overlay, found, position_m
 
-def detect_ball_xy(frame):
-    """
-    Detects ball and returns normalized x and y positions
-    
-    Args:
-        frame: Input BGR image frame
-        
-    Returns:
-        found (bool): True if ball detected
-        x_normalized (float): Normalized x position (-1 to +1)
-        y_normalized (float): Normalized y position (-1 to +1)
-        vis_frame (array): Frame with detection overlay
-    """
-    # Create detector instance using default config
-    detector = BallDetector()
-    
-    # Get detection results with visual overlay
-    vis_frame, found, position_m = detector.draw_detection(frame)
-    
-    if found:
-        x_m, y_m = position_m
-        x_normalized = x_m / detector.scale_factor if detector.scale_factor != 0 else 0.0
-        y_normalized = y_m / detector.scale_factor if detector.scale_factor != 0 else 0.0
+    def detect_ball_xy(self, frame):
+        vis_frame, found, position_m = self.draw_detection(frame)
 
-        x_normalized = np.clip(x_normalized, -1.0, 1.0)  # Ensure within bounds
-        y_normalized = np.clip(y_normalized, -1.0, 1.0)  # Ensure within bounds
+        if found:
+            x_m, y_m = position_m
+            x_normalized = x_m / self.scale_factor_x if self.scale_factor_x != 0 else 0.0
+            y_normalized = y_m / self.scale_factor_y if self.scale_factor_y != 0 else 0.0
+            x_normalized = np.clip(x_normalized, -1.0, 1.0)
+            y_normalized = np.clip(y_normalized, -1.0, 1.0)
+        else:
+            x_normalized = 0.0
+            y_normalized = 0.0
 
-    else:
-        x_normalized = 0.0
-        y_normalized = 0.0
-    
-    return found, x_normalized, y_normalized, vis_frame
+        return found, x_normalized, y_normalized, vis_frame
+
+    def camera_thread(self, position_queue, running_flag):
+        cap = cv2.VideoCapture(self.config['camera']['index'], cv2.CAP_DSHOW)
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+        while running_flag[0]:
+            ret, frame = cap.read()
+            if not ret:
+                continue
+
+            frame = cv2.resize(frame, (320, 240))
+            found, x_normalized, y_normalized, vis_frame = self.detect_ball_xy(frame)
+
+            if found:
+                position_mx = x_normalized * self.scale_factor_x
+                position_my = y_normalized * self.scale_factor_y
+                position_m = [position_mx, position_my]
+
+                try:
+                    if position_queue.full():
+                        position_queue.get_nowait()
+                    position_queue.put_nowait(position_m)
+                except Exception:
+                    pass
+
+            cv2.imshow("Ball Tracking", vis_frame)
+            if cv2.waitKey(1) & 0xFF == 27:
+                running_flag[0] = False
+                break
+
+        cap.release()
+        cv2.destroyAllWindows()
