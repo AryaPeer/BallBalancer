@@ -106,11 +106,10 @@ class PIDController:
 
         while running_flag[0]:
             try:
-                position_m = position_queue.get(timeout=0.1)
+                position_m, curr_time = position_queue.get(timeout=0.1)
 
                 print("This is the position of the ball (X,Y):", position_m)
 
-                curr_time = time.time()
                 dt = curr_time - last_time
                 last_time = curr_time
 
