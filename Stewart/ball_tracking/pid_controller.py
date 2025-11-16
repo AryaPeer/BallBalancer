@@ -27,7 +27,7 @@ class PIDController:
         self.min_servo_angle = -30
         self.max_servo_angle = 30
 
-    def update(self, position, dt=0.033):
+    def update(self, position, dt):
         error_x = (position[0] - self.setpoint_x)
         error_y = (position[1] - self.setpoint_y)
         print("Actual Errors:", error_x, error_y)
@@ -102,13 +102,19 @@ class PIDController:
         if not self.connect_servo():
             print("[ERROR] No servo - running in simulation mode")
 
+        last_time = time.time() 
+
         while running_flag[0]:
             try:
                 position_m = position_queue.get(timeout=0.1)
 
                 print("This is the position of the ball (X,Y):", position_m)
 
-                theta, phi = self.update(position_m)
+                curr_time = time.time()
+                dt = curr_time - last_time
+                last_time = curr_time
+
+                theta, phi = self.update(position_m, dt)
 
                 print("Done updating PID")
 
