@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 import json
 import os
-import time
 
 class BallDetector:
     def __init__(self, config_file="config.json"):
@@ -115,7 +114,6 @@ class BallDetector:
             found, x_normalized, y_normalized, vis_frame = self.detect_ball_xy(frame)
 
             if found:
-                curr_time = time.time()
                 position_mx = x_normalized * self.scale_factor_x
                 position_my = y_normalized * self.scale_factor_y
                 position_m = [position_mx, position_my]
@@ -123,7 +121,7 @@ class BallDetector:
                 try:
                     if position_queue.full():
                         position_queue.get_nowait()
-                    position_queue.put_nowait((position_m, curr_time))
+                    position_queue.put_nowait(position_m)
                 except Exception:
                     pass
 
