@@ -37,6 +37,8 @@ typedef struct msg_t
  * Static Variables
  ************************************/
 static Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();
+static const int MAX_MSG_PER_LOOP = 5;
+static int packets_read = 0;
 
 /************************************
  * Static Functions
@@ -67,8 +69,12 @@ void setup()
 //-----------------------------------------------------------------------
 void loop() 
 {
-  // Receive message
-  if (Serial.available() > 0)
+  msg_t recent_msg;
+  bool packet_available = false;
+  packets_read = 0;
+      
+  // Drain UART buffer (limited to 5)
+  while ( (Serial.available() >= MSG_LENGTH) && (packets_read < MAX_MSG_PER_LOOP) )
   {
     msg_t msg;
     msg.start = Serial.read();
@@ -76,28 +82,53 @@ void loop()
     // If new motor command is sent, process next three bytes
     if (msg.start == MSG_START_BYTE)
     {
-      int bytes_read = Serial.readBytes(msg.data, MSG_LENGTH - 1);
+      // Proccess bytes if possible (non blocking approach)
+      bool processed = true;
+      
+      for (int i=0; i< MSG_LENGTH - 1; i++)
+      {
+        if (Serial.available())
+        {
+          msg.data[i] = Serial.read();
+        }
+        else 
+        {
+          processed = false;
+          break;
+        }
+      }
 
       // Validate message
-      if ( (bytes_read == MSG_LENGTH - 1)) //&& checksum(msg.data, msg.data[3]))
+      if ( processed && checksum(msg.data, msg.data[3]) )
       {
-        // Interpret as signed angles (two’s complement)
-        int8_t raw_a1 = (int8_t)msg.data[0];
-        int8_t raw_a2 = (int8_t)msg.data[1];
-        int8_t raw_a3 = (int8_t)msg.data[2];
-
-        // Pulse = SERVO_MID + (-2.5)*angle (integer math, no float)
-        uint16_t m1_pulse = clampPulse((int32_t)SERVOMID + (int32_t)(-25 * raw_a1) / 10);
-        uint16_t m2_pulse = clampPulse((int32_t)SERVOMID + (int32_t)(-25 * raw_a2) / 10);
-        uint16_t m3_pulse = clampPulse((int32_t)SERVOMID + (int32_t)(-25 * raw_a3) / 10);
-
-        pwm.setPWM(SERVO1, 0, m1_pulse);
-        pwm.setPWM(SERVO2, 0, m2_pulse);
-        pwm.setPWM(SERVO3, 0, m3_pulse);
+        recent_msg = msg;
+        packet_available = true;
       }
+
+      packets_read++;
     }
   }
-  delay(10);
+
+  // Proccess last valid packet
+  if (packet_available)
+  {
+    // Interpret as signed angles (two’s complement)
+    int8_t raw_a1 = (int8_t)recent_msg.data[0];
+    int8_t raw_a2 = (int8_t)recent_msg.data[1];
+    int8_t raw_a3 = (int8_t)recent_msg.data[2];
+
+    // Pulse = SERVO_MID + (-2.5)*angle (integer math, no float)
+    uint16_t m1_pulse = clampPulse((int32_t)SERVOMID + (int32_t)(-25 * raw_a1) / 10);
+    uint16_t m2_pulse = clampPulse((int32_t)SERVOMID + (int32_t)(-25 * raw_a2) / 10);
+    uint16_t m3_pulse = clampPulse((int32_t)SERVOMID + (int32_t)(-25 * raw_a3) / 10);
+
+    pwm.setPWM(SERVO1, 0, m1_pulse);
+    pwm.setPWM(SERVO2, 0, m2_pulse);
+    pwm.setPWM(SERVO3, 0, m3_pulse);
+  }
+
+  // Small loop delay for stability
+  delay(1);
 }
 
 //-----------------------------------------------------------------------
