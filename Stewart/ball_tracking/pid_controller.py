@@ -10,12 +10,12 @@ class PIDController:
         self.config = config
 
         self.Kp_x = 1.5
-        self.Ki_x = 0.4
-        self.Kd_x = 2.5
+        self.Ki_x = 0.6
+        self.Kd_x = 0.6
 
         self.Kp_y = 1.5
-        self.Ki_y = 0.4
-        self.Kd_y = 2.5
+        self.Ki_y = 0.6
+        self.Kd_y = 0.6
 
         self.setpoint_x = 0.0
         self.setpoint_y = 0.0
@@ -24,20 +24,20 @@ class PIDController:
 
         self.servo_port = "COM5"
         self.servo = None
-        self.min_servo_angle = -30
-        self.max_servo_angle = 30
+        self.min_servo_angle = -20
+        self.max_servo_angle = 20
 
     def update(self, position, dt=0.033):
         error_x = (position[0] - self.setpoint_x)
         error_y = (position[1] - self.setpoint_y)
         print("Actual Errors:", error_x, error_y)
 
-        error_x = 10.0 * error_x
-        error_y = 10.0 * error_y
+        error_x = 20.0 * error_x
+        error_y = 20.0 * error_y
 
         MAX_ERROR = 0.5
-        error_x = np.clip(error_x, -MAX_ERROR, MAX_ERROR)
-        error_y = np.clip(error_y, -MAX_ERROR, MAX_ERROR)
+        # error_x = np.clip(error_x, -MAX_ERROR, MAX_ERROR)
+        # error_y = np.clip(error_y, -MAX_ERROR, MAX_ERROR)
 
         Px = self.Kp_x * error_x
         self.integral[0] += error_x * dt

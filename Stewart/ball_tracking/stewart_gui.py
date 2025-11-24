@@ -28,7 +28,7 @@ class StewartGUI:
 
         ttk.Label(self.root, text="Kp_x (Proportional)", font=("Arial", 10)).pack()
         self.kp_x_var = tk.DoubleVar(value=self.pid.Kp_x)
-        kp_x_slider = ttk.Scale(self.root, from_=0, to=10, variable=self.kp_x_var,
+        kp_x_slider = ttk.Scale(self.root, from_=0, to=20, variable=self.kp_x_var,
                                 orient=tk.HORIZONTAL, length=500)
         kp_x_slider.pack(pady=2)
         self.kp_x_label = ttk.Label(self.root, text=f"Kp_x: {self.pid.Kp_x:.1f}")
@@ -36,7 +36,7 @@ class StewartGUI:
 
         ttk.Label(self.root, text="Ki_x (Integral)", font=("Arial", 10)).pack()
         self.ki_x_var = tk.DoubleVar(value=self.pid.Ki_x)
-        ki_x_slider = ttk.Scale(self.root, from_=0, to=15, variable=self.ki_x_var,
+        ki_x_slider = ttk.Scale(self.root, from_=0, to=10, variable=self.ki_x_var,
                                 orient=tk.HORIZONTAL, length=500)
         ki_x_slider.pack(pady=2)
         self.ki_x_label = ttk.Label(self.root, text=f"Ki_x: {self.pid.Ki_x:.1f}")
@@ -56,7 +56,7 @@ class StewartGUI:
 
         ttk.Label(self.root, text="Kp_y (Proportional)", font=("Arial", 10)).pack()
         self.kp_y_var = tk.DoubleVar(value=self.pid.Kp_y)
-        kp_y_slider = ttk.Scale(self.root, from_=0, to=15, variable=self.kp_y_var,
+        kp_y_slider = ttk.Scale(self.root, from_=0, to=20, variable=self.kp_y_var,
                                 orient=tk.HORIZONTAL, length=500)
         kp_y_slider.pack(pady=2)
         self.kp_y_label = ttk.Label(self.root, text=f"Kp_y: {self.pid.Kp_y:.1f}")

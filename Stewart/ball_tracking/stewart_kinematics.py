@@ -3,7 +3,7 @@ import math
 class StewartKinematics:
     def __init__(self):
         self.L = [0.050, 0.080, 0.1085, 0.14056]
-        self.Pz = 0.0824
+        self.Pz = 0.1124
 
     def solve_quadratic(self, C, D, E, sign=1):
         discriminant = D**2 - 4*C*E
