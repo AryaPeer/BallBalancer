@@ -105,6 +105,14 @@ class BallDetector:
         cap = cv2.VideoCapture(self.config['camera']['index'], cv2.CAP_DSHOW)
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
+        # Ball Camera Settings
+        cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75)
+        cap.set(cv2.CAP_PROP_EXPOSURE, -6)
+        cap.set(cv2.CAP_PROP_CONTRAST, 30)
+        cap.set(cv2.CAP_PROP_BRIGHTNESS, 125)
+        cap.set(cv2.CAP_PROP_SHARPNESS, 32)
+        cap.set(cv2.CAP_PROP_SATURATION, 32)
+
         while running_flag[0]:
             ret, frame = cap.read()
             if not ret:

@@ -35,6 +35,11 @@ class SimpleAutoCalibrator:
         self.pixel_to_meter_ratio_x = None  # Conversion ratio from pixels to meters (x-axis)
         self.pixel_to_meter_ratio_y = None  # Conversion ratio from pixels to meters (y-axis)
 
+        # QR Code Detection Setup
+        self.qr_detector = cv2.QRCodeDetector()
+        self.TARGET_CODES = ["ONE", "TWO", "THREE", "FOUR"]
+        self.qr_centres = [None, None, None, None]
+
     #----------------------------------------------------------------------------------
     def mouse_callback(self, event, x, y, flags, param):
         """Handle mouse click events for interactive calibration.
@@ -172,6 +177,31 @@ class SimpleAutoCalibrator:
         meters_offset = [meters_offset_x, meters_offset_y]
         
         return meters_offset
+    
+    
+    #----------------------------------------------------------------------------------
+    def detect_qr_codes(self, frame):
+        # Run multi-QR detection
+        ok, decoded_info, points, _ = self.qr_detector.detectAndDecodeMulti(frame)
+
+        if not ok or points is None:
+            return  # no QR codes found this frame
+
+        # Normalize corner format to (N,4,2)
+        pts = np.array(points)
+        if pts.ndim == 4:
+            pts = pts.reshape(-1, 4, 2)
+
+        # Loop through detected QR codes
+        for text, corners in zip(decoded_info, pts):
+            if text in self.TARGET_CODES:
+                idx = self.TARGET_CODES.index(text)
+
+                # Compute center as mean of 4 corners
+                cx = int(corners[:, 0].mean())
+                cy = int(corners[:, 1].mean())
+
+                self.qr_centres[idx] = (cx, cy)
 
     #----------------------------------------------------------------------------------
     def save_config(self):
@@ -276,6 +306,19 @@ class SimpleAutoCalibrator:
             cv2.putText(overlay, f"Ratios - X: {self.pixel_to_meter_ratio_x:.6f}, Y: {self.pixel_to_meter_ratio_y:.6f}",
                        (10, overlay.shape[0] - 20),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
+            
+        if True: # TODO Add better condition here if needed
+            for label, centre in zip(self.TARGET_CODES, self.qr_centres):
+                if centre:
+                    x, y = map(int, centre)
+                    cv2.circle(overlay, (x, y), 6, (0, 0, 255), -1)
+                    cv2.putText(overlay, label, (x-32, y-6),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0,0,255), 2)
+            # Draw lines between endpoints if all are selected
+            if (self.qr_centres[0] and self.qr_centres[1]):
+                cv2.line(overlay, tuple(map(int, self.qr_centres[0])), tuple(map(int, self.qr_centres[1])), (255, 0, 0), 2)
+            if (self.qr_centres[2] and self.qr_centres[3]):    
+                cv2.line(overlay, tuple(map(int, self.qr_centres[2])), tuple(map(int, self.qr_centres[3])), (255, 0, 0), 2)
         
         return overlay
 
@@ -287,7 +330,15 @@ class SimpleAutoCalibrator:
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.FRAME_W)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.FRAME_H)
         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimize latency
-        
+
+        # Ball Camera Settings
+        self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75)
+        self.cap.set(cv2.CAP_PROP_EXPOSURE, -6)
+        self.cap.set(cv2.CAP_PROP_CONTRAST, 30)
+        self.cap.set(cv2.CAP_PROP_BRIGHTNESS, 125)
+        self.cap.set(cv2.CAP_PROP_SHARPNESS, 32)
+        self.cap.set(cv2.CAP_PROP_SATURATION, 32)
+
         # Setup OpenCV window and mouse callback
         cv2.namedWindow("Auto Calibration")
         cv2.setMouseCallback("Auto Calibration", self.mouse_callback)
@@ -297,7 +348,7 @@ class SimpleAutoCalibrator:
         print("Phase 1: Click on ball to sample colors, press 'c' when done")
         print("Phase 2: Click on platform endpoints (4 points)")
         print("Press 's' to save, 'q' to quit")
-        
+
         # Main calibration loop
         while True:
             ret, frame = self.cap.read()
@@ -305,6 +356,7 @@ class SimpleAutoCalibrator:
                 continue
             
             self.current_frame = frame
+            self.detect_qr_codes(frame)
             
             # Draw overlay and display frame
             display = self.draw_overlay(frame)
@@ -321,6 +373,19 @@ class SimpleAutoCalibrator:
                 if self.hsv_samples:
                     self.phase = "geometry"
                     print("[INFO] Color calibration complete. Click on platform endpoints.")
+
+                    # QR Code Camera Settings
+                    self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)
+                    self.cap.set(cv2.CAP_PROP_EXPOSURE, -7)
+                    self.cap.set(cv2.CAP_PROP_CONTRAST, 85)
+                    self.cap.set(cv2.CAP_PROP_BRIGHTNESS, 130)
+                    self.cap.set(cv2.CAP_PROP_SHARPNESS, 20)
+                    self.cap.set(cv2.CAP_PROP_SATURATION, 0)
+            elif key == ord('r') and all(c is not None for c in self.qr_centres):
+                print(self.peg_points)
+                print(self.qr_centres)
+                self.peg_points = self.qr_centres.copy()
+                self.calculate_geometry()
             elif key == ord('s') and self.phase == "complete":
                 # Save configuration and exit
                 self.save_config()
