@@ -7,6 +7,9 @@ import numpy as np
 import json
 import math
 from datetime import datetime
+import serial
+import time
+import struct
 
 class SimpleAutoCalibrator:
     """Interactive calibration system for ball and beam control setup."""
@@ -23,7 +26,7 @@ class SimpleAutoCalibrator:
         
         # Calibration state tracking
         self.current_frame = None  # Current video frame
-        self.phase = "color"  # Current phase: "color", "geometry", "complete"
+        self.phase = "color"  # Current phase: "color", "geometry", "motor_cal", "complete"
         
         # Color calibration data
         self.hsv_samples = []  # Collected HSV color samples
@@ -40,6 +43,16 @@ class SimpleAutoCalibrator:
         self.TARGET_CODES = ["ONE", "TWO", "THREE", "FOUR"]
         self.qr_centres = [None, None, None, None]
 
+        # Motor Calibration
+        self.motor_offsets = [0, 0, 0]
+        self.servo_port = "COM4"
+        self.servo = None
+        self.min_servo_angle = -20
+        self.max_servo_angle = 20
+        self.dir_toggle = 1 # +1 -> increase angle, -1 -> decrease angle
+        self.last_motor_update = 0
+        self.motor_increment = 1  # Degrees to adjust per click
+
     #----------------------------------------------------------------------------------
     def mouse_callback(self, event, x, y, flags, param):
         """Handle mouse click events for interactive calibration.
@@ -52,15 +65,36 @@ class SimpleAutoCalibrator:
         """
 
         if event == cv2.EVENT_LBUTTONDOWN:
+
             if self.phase == "color":
                 # Color sampling phase - collect HSV samples at click point
                 self.sample_color(x, y)
+
             elif self.phase == "geometry" and len(self.peg_points) < 4:
                 # Geometry phase - collect platform x-y coordinates
                 self.peg_points.append((x, y))
                 print(f"[GEO] Peg {len(self.peg_points)} selected")
                 if len(self.peg_points) == 4:
                     self.calculate_geometry()
+
+            elif self.phase == "motor_cal":
+                # Convert mouse click to calib ref frame
+                x_ref = (x - self.FRAME_W // 2) * self.pixel_to_meter_ratio_x
+                y_ref = (y - self.FRAME_H // 2) * self.pixel_to_meter_ratio_y
+
+                # Pick desired motor based on click location (this relies on the moved coord axis)
+                if (x_ref < 0):
+                    self.motor_offsets[0] += self.motor_increment * self.dir_toggle
+                elif (y_ref > 0):
+                    self.motor_offsets[1] += self.motor_increment * self.dir_toggle
+                else:
+                    self.motor_offsets[2] += self.motor_increment * self.dir_toggle
+
+                # Offset motor (rate limited)
+                now = time.time()
+                if now - self.last_motor_update > 0.1: 
+                    self.send_servo_angle(*self.motor_offsets)
+                    self.last_motor_update = now
 
     #----------------------------------------------------------------------------------
     def sample_color(self, x, y):
@@ -124,9 +158,6 @@ class SimpleAutoCalibrator:
         self.pixel_to_meter_ratio_x = (self.PLATFORM_DIAMETER)/ pixel_distance_x
         self.pixel_to_meter_ratio_y = (self.PLATFORM_DIAMETER) / pixel_distance_y
         print(f"[GEO] Pixel-to-meter ratio: x = {self.pixel_to_meter_ratio_x:.6f}, y = {self.pixel_to_meter_ratio_y:.6f}")
-        
-        # Advance to complete phase
-        self.phase = "complete"
 
     #----------------------------------------------------------------------------------
     def detect_ball_position(self, frame):
@@ -221,7 +252,8 @@ class SimpleAutoCalibrator:
             "calibration": {
                 "pixel_to_meter_ratio_x": float(self.pixel_to_meter_ratio_x) if self.pixel_to_meter_ratio_x else None,
                 "pixel_to_meter_ratio_y": float(self.pixel_to_meter_ratio_y) if self.pixel_to_meter_ratio_y else None,
-                "peg_points": self.peg_points if self.peg_points else None
+                "peg_points": self.peg_points if self.peg_points else None,
+                "motor_offsets": [float(v) for v in self.motor_offsets]
             }
         }
         
@@ -244,9 +276,10 @@ class SimpleAutoCalibrator:
         
         # Phase-specific instruction text
         phase_text = {
-            "color": "Click on ball to sample colors. Press 'c' when done.",
-            "geometry": "Click on platform x endpoints and y endpoints (4 points)",
-            "complete": "Calibration complete! Press 's' to save"
+            "color": "Click on ball to sample colors.Press 'c' when done.",
+            "geometry": "Click on platform endpoints or 'r' for auto-cal. Press 'm' when done.",
+            "motor_cal": "Click motors to adjust offsets. Press 's' to save.",
+            "complete": "Calibration complete!"
         }
         
         # Draw current phase and instructions
@@ -271,7 +304,6 @@ class SimpleAutoCalibrator:
             cv2.line(overlay, self.peg_points[0], self.peg_points[1], (255, 0, 0), 2)
             cv2.line(overlay, self.peg_points[2], self.peg_points[3], (255, 0, 0), 2)
 
-        
         # Show real-time ball detection if color calibration is complete
         if self.lower_hsv:
             hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -319,19 +351,59 @@ class SimpleAutoCalibrator:
                 cv2.line(overlay, tuple(map(int, self.qr_centres[0])), tuple(map(int, self.qr_centres[1])), (255, 0, 0), 2)
             if (self.qr_centres[2] and self.qr_centres[3]):    
                 cv2.line(overlay, tuple(map(int, self.qr_centres[2])), tuple(map(int, self.qr_centres[3])), (255, 0, 0), 2)
+
+        # --- Draw motor offset mode (bottom-left) ---
+        if self.phase == "motor_cal":
+            mode = "RAISE (+)" if self.dir_toggle == 1 else "LOWER (-)"
+            text = f"Motor Offset Mode: {mode}   (press 't' to toggle)"
+
+            y = overlay.shape[0] - 50   # 10px above bottom
+            cv2.putText(overlay, text, (10, y),
+                        cv2.FONT_HERSHEY_SIMPLEX, 
+                        0.55, (255, 200, 0), 2)
         
         return overlay
+    
+    #----------------------------------------------------------------------------------
+    def connect_servo(self):
+        try:
+            self.servo = serial.Serial(self.servo_port, 115200)
+            time.sleep(1)
+            print("[SERVO] Connected")
+            return True
+        except Exception as e:
+            raise SystemExit("Servo connection failed: " + str(e))
+    
+    #----------------------------------------------------------------------------------
+    def send_servo_angle(self, angle1, angle2, angle3):
+        if self.servo:
+            try:
+                angle1 = int(np.clip(angle1, self.min_servo_angle, self.max_servo_angle))
+                angle2 = int(np.clip(angle2, self.min_servo_angle, self.max_servo_angle))
+                angle3 = int(np.clip(angle3, self.min_servo_angle, self.max_servo_angle))
+
+                checksum = (angle1 + angle2 + angle3) & 0xFF
+                packet = struct.pack('BbbbB', 0xAA, angle1, angle2, angle3, checksum)
+                self.servo.write(packet)
+
+                print(f"[SERVO] Sent: {packet}")
+
+            except Exception as e:
+                print(f"[SERVO] Send failed: {e}")
 
     #----------------------------------------------------------------------------------
     def run(self):
         """Main calibration loop with interactive GUI."""
+        # Try to connect to servo
+        self.connect_servo()
+
         # Initialize camera capture
         self.cap = cv2.VideoCapture(self.CAM_INDEX, cv2.CAP_DSHOW)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.FRAME_W)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.FRAME_H)
         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimize latency
 
-        # Ball Camera Settings
+        # Ball Camera Settings (for color calibration)
         self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75)
         self.cap.set(cv2.CAP_PROP_EXPOSURE, -6)
         self.cap.set(cv2.CAP_PROP_CONTRAST, 30)
@@ -345,9 +417,6 @@ class SimpleAutoCalibrator:
         
         # Display instructions
         print("[INFO] Simple Auto Calibration")
-        print("Phase 1: Click on ball to sample colors, press 'c' when done")
-        print("Phase 2: Click on platform endpoints (4 points)")
-        print("Press 's' to save, 'q' to quit")
 
         # Main calibration loop
         while True:
@@ -356,6 +425,8 @@ class SimpleAutoCalibrator:
                 continue
             
             self.current_frame = frame
+
+            # QR Detection always runs
             self.detect_qr_codes(frame)
             
             # Draw overlay and display frame
@@ -365,29 +436,83 @@ class SimpleAutoCalibrator:
             # Handle keyboard input
             key = cv2.waitKey(1) & 0xFF
             
+            # ============================================
+            # QUIT ANY TIME
+            # ============================================
             if key == ord('q'):
-                # Quit calibration
                 break
-            elif key == ord('c') and self.phase == "color":
-                # Complete color calibration phase
-                if self.hsv_samples:
-                    self.phase = "geometry"
-                    print("[INFO] Color calibration complete. Click on platform endpoints.")
 
-                    # QR Code Camera Settings
-                    self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)
-                    self.cap.set(cv2.CAP_PROP_EXPOSURE, -7)
-                    self.cap.set(cv2.CAP_PROP_CONTRAST, 85)
-                    self.cap.set(cv2.CAP_PROP_BRIGHTNESS, 130)
-                    self.cap.set(cv2.CAP_PROP_SHARPNESS, 20)
-                    self.cap.set(cv2.CAP_PROP_SATURATION, 0)
-            elif key == ord('r') and all(c is not None for c in self.qr_centres):
-                print(self.peg_points)
-                print(self.qr_centres)
-                self.peg_points = self.qr_centres.copy()
-                self.calculate_geometry()
-            elif key == ord('s') and self.phase == "complete":
-                # Save configuration and exit
+            # ============================================
+            # PHASE 1 — COLOR CALIBRATION
+            # ============================================
+            if self.phase == "color":
+
+                if key == ord('c'):
+                # Complete color calibration phase
+                    if self.hsv_samples:
+                        print("[INFO] Color calibration complete. Click on platform endpoints.")
+
+                        # Switch to QR camera settings
+                        self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)
+                        self.cap.set(cv2.CAP_PROP_EXPOSURE, -7)
+                        self.cap.set(cv2.CAP_PROP_CONTRAST, 85)
+                        self.cap.set(cv2.CAP_PROP_BRIGHTNESS, 130)
+                        self.cap.set(cv2.CAP_PROP_SHARPNESS, 20)
+                        self.cap.set(cv2.CAP_PROP_SATURATION, 0)
+
+                        self.phase = "geometry"
+
+            # ============================================
+            # PHASE 2 — GEOMETRY CALIBRATION (QR ACTIVE)
+            # ============================================
+            elif self.phase == "geometry":
+
+                # QR override
+                if key == ord('r') and all(c is not None for c in self.qr_centres):
+                    print("[INFO] Using QR centers for geometry")
+                    self.peg_points = self.qr_centres.copy()
+                    self.calculate_geometry()
+                    print("[INFO] Geometry done → Motor calibration")
+
+                # If user clicked 4 points manually → geometry ready
+                if len(self.peg_points) == 4:
+                    print("[INFO] 4 points selected. Press 'm' to continue.")
+
+                # User confirms geometry
+                if key == ord('m'):
+                    if len(self.peg_points) == 4:
+                        print("[INFO] Geometry confirmed → Motor calibration phase")
+
+                        # back to BALL-friendly settings
+                        self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75)
+                        self.cap.set(cv2.CAP_PROP_EXPOSURE, -6)
+                        self.cap.set(cv2.CAP_PROP_CONTRAST, 30)
+                        self.cap.set(cv2.CAP_PROP_BRIGHTNESS, 125)
+                        self.cap.set(cv2.CAP_PROP_SHARPNESS, 32)
+                        self.cap.set(cv2.CAP_PROP_SATURATION, 32)
+
+                        self.phase = "motor_cal"
+                    else:
+                        print("[WARN] Need 4 peg points or 'r' QR before pressing 'm'.")
+
+            # ============================================
+            # PHASE 3 — MOTOR CALIBRATION
+            # ============================================
+            elif self.phase == "motor_cal":
+                
+                # Toggle raise/lower mode
+                if key == ord('t'):
+                    self.dir_toggle *= -1
+
+                # Save and exit
+                if key == ord('s'):
+                    print("[INFO] Saving configuration…")
+                    self.phase = "complete"
+
+            # ============================================
+            # PHASE 4 — SAVE CONFIG
+            # ============================================
+            elif self.phase == "complete":
                 self.save_config()
                 break
         

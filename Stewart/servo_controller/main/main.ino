@@ -57,9 +57,9 @@ void setup()
   pwm.setOscillatorFrequency(OSCILLATOR_FREQ);
   pwm.setPWMFreq(SERVO_FREQ);  // Analog servos run at ~50 Hz updates
 
-  pwm.setPWM(SERVO1, 0, SERVOMID + 15);
-  pwm.setPWM(SERVO2, 0, SERVOMID + 20);
-  pwm.setPWM(SERVO3, 0, SERVOMID - 5);
+  pwm.setPWM(SERVO1, 0, SERVOMID);
+  pwm.setPWM(SERVO2, 0, SERVOMID);
+  pwm.setPWM(SERVO3, 0, SERVOMID);
 
   delay(10);
 }
@@ -87,9 +87,9 @@ void loop()
         int8_t raw_a3 = (int8_t)msg.data[2];
 
         // Pulse = SERVO_MID + (-2.5)*angle (integer math, no float)
-        uint16_t m1_pulse = clampPulse((int32_t)SERVOMID + (int32_t)(-25 * raw_a1) / 10 + 15);
-        uint16_t m2_pulse = clampPulse((int32_t)SERVOMID + (int32_t)(-25 * raw_a2) / 10 + 20);
-        uint16_t m3_pulse = clampPulse((int32_t)SERVOMID + (int32_t)(-25 * raw_a3) / 10 - 5);
+        uint16_t m1_pulse = clampPulse((int32_t)SERVOMID + (int32_t)(-25 * raw_a1) / 10);
+        uint16_t m2_pulse = clampPulse((int32_t)SERVOMID + (int32_t)(-25 * raw_a2) / 10);
+        uint16_t m3_pulse = clampPulse((int32_t)SERVOMID + (int32_t)(-25 * raw_a3) / 10);
 
         pwm.setPWM(SERVO1, 0, m1_pulse);
         pwm.setPWM(SERVO2, 0, m2_pulse);
