@@ -1,4 +1,4 @@
-# Stewart Platform Ball Balancer
+# Ball Balancing Stewart Platform 
 
 A closed-loop control system that balances a ball on a 3-DOF Stewart platform using computer vision and PID control.
 
