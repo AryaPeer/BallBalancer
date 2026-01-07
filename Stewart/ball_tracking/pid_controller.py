@@ -8,6 +8,7 @@ import queue
 class PIDController:
     def __init__(self, config):
         self.config = config
+        self.motor_offsets = config["calibration"]["motor_offsets"]
 
         self.Kp_x = 1.5
         self.Ki_x = 0.6
@@ -85,9 +86,9 @@ class PIDController:
     def send_servo_angle(self, angle1, angle2, angle3):
         if self.servo:
             try:
-                angle1 = int(np.clip(angle1, self.min_servo_angle, self.max_servo_angle))
-                angle2 = int(np.clip(angle2, self.min_servo_angle, self.max_servo_angle))
-                angle3 = int(np.clip(angle3, self.min_servo_angle, self.max_servo_angle))
+                angle1 = int(np.clip(angle1 + self.motor_offsets[0], self.min_servo_angle, self.max_servo_angle))
+                angle2 = int(np.clip(angle2 + self.motor_offsets[1], self.min_servo_angle, self.max_servo_angle))
+                angle3 = int(np.clip(angle3 + self.motor_offsets[2], self.min_servo_angle, self.max_servo_angle))
 
                 checksum = (angle1 + angle2 + angle3) & 0xFF
                 packet = struct.pack('BbbbB', 0xAA, angle1, angle2, angle3, checksum)
