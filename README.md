@@ -1,6 +1,7 @@
 # Ball Balancing Stewart Platform 
 
-<img width="673" height="844" alt="BallBalancer" src="https://github.com/user-attachments/assets/9c282158-5b26-4e71-a928-3e97d95b88de" />
+<img width="536" height="382" alt="Balancer" src="https://github.com/user-attachments/assets/6a34a726-517d-4760-a780-7fc392ef41d7" />
+
 
 A closed-loop control system that balances a ball on a 3-DOF Stewart platform using computer vision and PID control.
 
